@@ -1,7 +1,7 @@
 import { KanbanColumn } from './KanbanColumn';
 import { KANBAN_COLUMNS } from '../../constants';
 
-export function KanbanBoard({ tasks, onAddTask, onToggle, onDelete, onOpen, onChangeStatus }) {
+export function KanbanBoard({ tasks, onAddTask, onToggle, onDelete, onOpen, onChangeStatus, onToggleSubtask }) {
   // Группируем задачи по статусам
   const grouped = KANBAN_COLUMNS.reduce((acc, col) => {
     acc[col.id] = tasks.filter(t => {
@@ -28,6 +28,7 @@ export function KanbanBoard({ tasks, onAddTask, onToggle, onDelete, onOpen, onCh
           onDelete={onDelete}
           onOpen={onOpen}
           onDrop={handleDrop}
+          onToggleSubtask={onToggleSubtask}  
         />
       ))}
     </div>

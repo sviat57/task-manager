@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Plus } from 'lucide-react';
 import { TaskItem } from '../tasks/TaskItem';
 
-export function KanbanColumn({ column, tasks, onAddTask, onToggle, onDelete, onOpen, onDrop }) {
+export function KanbanColumn({ column, tasks, onAddTask, onToggle, onDelete, onOpen, onDrop, onToggleSubtask }) {
   // Обработка drag-and-drop (нативный HTML5 API)
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -62,7 +62,9 @@ export function KanbanColumn({ column, tasks, onAddTask, onToggle, onDelete, onO
                 onToggle={onToggle}
                 onDelete={onDelete}
                 onOpen={onOpen}
-              />
+                onToggleSubtask={onToggleSubtask}  
+                isGrid={false}
+                />
             </motion.div>
           ))}
         </AnimatePresence>
