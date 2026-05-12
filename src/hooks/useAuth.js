@@ -2,17 +2,12 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
 /**
- * Хук авторизации.
- * Подписывается на onAuthStateChange — реагирует на логин/логаут/
- * восстановление сессии после перезагрузки страницы.
+ * useAuth — авторизация с поддержкой гостевого режима.
  *
- * Возвращает:
- *  user        — объект пользователя Supabase или null
- *  loading     — true пока идёт проверка сессии при старте
- *  signUp      — регистрация email/password
- *  signIn      — вход email/password
- *  signOut     — выход
- *  error       — последняя ошибка auth
+ * Новые методы:
+ *  signInAsGuest  — анонимный вход через Supabase Anonymous Auth
+ *  upgradeGuest   — привязывает email+password к анонимному аккаунту
+ *  isGuest        — true если текущий пользователь анонимный
  */
 export function useAuth() {
   const [user,    setUser]    = useState(null);
@@ -20,13 +15,11 @@ export function useAuth() {
   const [error,   setError]   = useState(null);
 
   useEffect(() => {
-    // Получаем текущую сессию при монтировании (работает после перезагрузки)
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    // Подписка на все изменения состояния авторизации
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user ?? null);
@@ -37,18 +30,23 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Определяем гостя: у анонимных юзеров нет email
+  const isGuest = user
+    ? !user.email && user.app_metadata?.provider === 'anonymous'
+    : false;
+
   const signUp = async (email, password) => {
     setError(null);
     const { error: err } = await supabase.auth.signUp({ email, password });
-    if (err) setError(err.message);
-    return !err;
+    if (err) { setError(err.message); return false; }
+    return true;
   };
 
   const signIn = async (email, password) => {
     setError(null);
     const { error: err } = await supabase.auth.signInWithPassword({ email, password });
-    if (err) setError(err.message);
-    return !err;
+    if (err) { setError(err.message); return false; }
+    return true;
   };
 
   const signOut = async () => {
@@ -56,5 +54,42 @@ export function useAuth() {
     setUser(null);
   };
 
-  return { user, loading, error, signUp, signIn, signOut };
+  // ── Гостевой вход ─────────────────────────────────────────────────────────
+  const signInAsGuest = async () => {
+    setError(null);
+    const { error: err } = await supabase.auth.signInAnonymously();
+    if (err) { setError(err.message); return false; }
+    return true;
+  };
+
+  /**
+   * Апгрейд гостя до полноценного аккаунта.
+   * Supabase linkIdentity привязывает email к существующей анонимной сессии,
+   * сохраняя все данные (задачи, настройки).
+   */
+  const upgradeGuest = async (email, password) => {
+    setError(null);
+    try {
+      // Обновляем анонимного пользователя — добавляем email и пароль
+      const { error: err } = await supabase.auth.updateUser({ email, password });
+      if (err) throw err;
+
+      // Обновляем профиль в таблице profiles
+      await supabase
+        .from('profiles')
+        .update({ email, is_guest: false })
+        .eq('id', user.id);
+
+      return true;
+    } catch (err) {
+      setError(err.message);
+      return false;
+    }
+  };
+
+  return {
+    user, loading, error, isGuest,
+    signUp, signIn, signOut,
+    signInAsGuest, upgradeGuest,
+  };
 }

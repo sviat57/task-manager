@@ -7,7 +7,9 @@ import { TaskList }    from './components/tasks/TaskList';
 import { TaskModal }   from './components/tasks/TaskModal';
 import { KanbanBoard } from './components/kanban/KanbanBoard';
 import { StatsPanel }  from './components/stats/StatsPanel';
+import { TrashPanel }  from './components/ui/TrashPanel';
 import { AuthModal }   from './components/auth/AuthModal';
+import { AlertModal }  from './components/ui/AlertModal';
 import { PwaPrompt }   from './components/ui/PwaPrompt';
 import { useAuth }     from './hooks/useAuth';
 import { useTasks }    from './hooks/useTasks';
@@ -15,20 +17,24 @@ import { useLocalStorage } from './hooks/useLocalStorage';
 import { VIEWS } from './constants';
 
 export default function App() {
-  const { user, loading: authLoading, error: authError, signIn, signUp, signOut } = useAuth();
-
-  // useTasks теперь принимает user — не загружает ничего если user === null
   const {
-    tasks, loading: tasksLoading,
-    addTask, updateTask, deleteTask,
+    user, loading: authLoading, error: authError,
+    signIn, signUp, signOut,
+    signInAsGuest, upgradeGuest, isGuest,
+  } = useAuth();
+
+  const {
+    tasks, trashed, loading: tasksLoading,
+    addTask, updateTask,
     toggleTask, changeStatus,
     addSubtask, toggleSubtask, deleteSubtask,
+    moveToTrash, restoreTask, permanentDelete, emptyTrash,
   } = useTasks(user);
 
-  const [theme,       setTheme]       = useLocalStorage('tm_theme', 'light');
-  const [activeView,  setActiveView]  = useLocalStorage('tm_view',  VIEWS.LIST);
+  const [activeView,   setActiveView]   = useLocalStorage('tm_view', VIEWS.LIST);
   const [selectedTask, setSelectedTask] = useState(null);
   const [sidebarOpen,  setSidebarOpen]  = useState(false);
+  const [deleteAlert,  setDeleteAlert]  = useState(null);
 
   const activeTaskCount = tasks.filter(t => !t.completed).length;
 
@@ -37,201 +43,236 @@ export default function App() {
     setSelectedTask(newTask);
   }, [addTask]);
 
-  const toggleTheme = () => setTheme(t => t === 'light' ? 'dark' : 'light');
+  const handleDeleteRequest = useCallback((id) => {
+    const task = tasks.find(t => t.id === id);
+    setDeleteAlert({ id, title: task?.title || 'Без названия' });
+  }, [tasks]);
 
-  // ── Пока проверяем сессию — показываем сплэш ───────────────────────────────
+  const handleDeleteConfirm = useCallback(() => {
+    if (deleteAlert) moveToTrash(deleteAlert.id);
+    setDeleteAlert(null);
+  }, [deleteAlert, moveToTrash]);
+
+  // ── Сплэш загрузки ────────────────────────────────────────────────────────
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950
-        flex items-center justify-center">
+      <div className="min-h-screen bg-theme-base flex items-center justify-center">
         <motion.div
           animate={{ opacity: [0.4, 1, 0.4] }}
           transition={{ duration: 1.8, repeat: Infinity }}
           className="flex items-center gap-3"
         >
-          <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-indigo-600
-            rounded-xl flex items-center justify-center">
-            <span className="text-white text-sm font-bold">T</span>
+          <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center">
+            <span className="text-primary-fg text-sm font-bold">T</span>
           </div>
-          <span className="font-semibold text-slate-600 dark:text-slate-400">TaskFlow</span>
+          <span className="font-semibold text-theme-muted">TaskFlow</span>
         </motion.div>
       </div>
     );
   }
 
-  // ── Не авторизован — показываем AuthModal ──────────────────────────────────
+  // ── Экран авторизации ─────────────────────────────────────────────────────
   if (!user) {
     return (
-      <div className={theme === 'dark' ? 'dark' : ''}>
+      <div className="min-h-screen bg-theme-base">
         <AuthModal
           onSignIn={signIn}
           onSignUp={signUp}
+          onSignInAsGuest={signInAsGuest}
           error={authError}
         />
       </div>
     );
   }
 
-  // ── Основной интерфейс ─────────────────────────────────────────────────────
+  // ── Основной интерфейс ────────────────────────────────────────────────────
   return (
-    <div className={theme === 'dark' ? 'dark' : ''}>
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+    // ✅ ИСПРАВЛЕНО: один корневой div, правильная структура
+    <div className="min-h-screen bg-theme-base transition-colors duration-300">
 
-        {/* Мобильный сайдбар */}
-        <AnimatePresence>
-          {sidebarOpen && (
+      {/* Баннер гостевого режима */}
+      <AnimatePresence>
+        {isGuest && (
+          <GuestBanner upgradeGuest={upgradeGuest} error={authError} />
+        )}
+      </AnimatePresence>
+
+      {/* ── Мобильный сайдбар ───────────────────────────────────────────── */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <motion.div
+            className="fixed inset-0 z-40 lg:hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSidebarOpen(false)}
+          >
+            <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
             <motion.div
-              className="fixed inset-0 z-40 lg:hidden"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSidebarOpen(false)}
+              // ✅ ИСПРАВЛЕНО: bg-theme-surface вместо bg-white dark:bg-slate-900
+              className="absolute left-0 top-0 bottom-0 w-64 bg-theme-surface
+                shadow-modal overflow-y-auto"
+              initial={{ x: -256 }}
+              animate={{ x: 0 }}
+              exit={{ x: -256 }}
+              transition={{ type: 'spring', bounce: 0.1 }}
+              onClick={e => e.stopPropagation()}
             >
-              <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
-              <motion.div
-                className="absolute left-0 top-0 bottom-0 w-64 bg-white
-                  dark:bg-slate-900 p-6 shadow-2xl"
-                initial={{ x: -256 }}
-                animate={{ x: 0 }}
-                exit={{ x: -256 }}
-                transition={{ type: 'spring', bounce: 0.1 }}
-                onClick={e => e.stopPropagation()}
-              >
+              <div className="p-4">
                 <Sidebar
                   activeView={activeView}
                   onViewChange={(v) => { setActiveView(v); setSidebarOpen(false); }}
-                  theme={theme}
-                  onToggleTheme={toggleTheme}
                   taskCount={activeTaskCount}
+                  trashCount={trashed.length}
                 />
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <div className="max-w-7xl mx-auto flex min-h-screen">
-
-          {/* Десктоп-сайдбар */}
-          <div className="hidden lg:flex flex-col w-56 flex-shrink-0 py-8 pl-6 pr-2">
-            <Sidebar
-              activeView={activeView}
-              onViewChange={setActiveView}
-              theme={theme}
-              onToggleTheme={toggleTheme}
-              taskCount={activeTaskCount}
-            />
-          </div>
-
-          <main className="flex-1 px-4 lg:px-8 py-8 min-w-0">
-
-            {/* Мобильная шапка */}
-            <div className="flex items-center justify-between mb-4 lg:hidden">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setSidebarOpen(true)}
-                  className="p-2 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800
-                    text-slate-500 transition-colors cursor-pointer"
-                >
-                  <Menu size={20} />
-                </button>
-                <span className="font-bold text-slate-800 dark:text-slate-200">TaskFlow</span>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-              {/* Аватар + выход */}
-              <UserMenu user={user} onSignOut={signOut} />
-            </div>
+      {/* ── Основной layout ──────────────────────────────────────────────── */}
+      <div className="max-w-7xl mx-auto flex min-h-screen">
 
-            {/* Десктоп: аватар + выход в правом верхнем углу */}
-            <div className="hidden lg:flex justify-end mb-4">
-              <UserMenu user={user} onSignOut={signOut} />
-            </div>
-
-            {/* Индикатор синхронизации */}
-            <AnimatePresence>
-              {tasksLoading && (
-                <motion.div
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1,  y:  0 }}
-                  exit={{   opacity: 0,  y: -8 }}
-                  className="mb-4 flex items-center gap-2 text-xs text-slate-400
-                    dark:text-slate-500"
-                >
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                    className="w-3 h-3 border-2 border-violet-400 border-t-transparent rounded-full"
-                  />
-                  Синхронизация...
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <Header view={activeView} />
-
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeView}
-                initial={{ opacity: 0, y: 8  }}
-                animate={{ opacity: 1, y: 0  }}
-                exit={{   opacity: 0, y: -8 }}
-                transition={{ duration: 0.2 }}
-              >
-                {activeView === VIEWS.LIST && (
-                  <TaskList
-                    tasks={tasks}
-                    onAddTask={handleAddTask}
-                    onToggle={toggleTask}
-                    onDelete={deleteTask}
-                    onOpen={setSelectedTask}
-                    onToggleSubtask={toggleSubtask}
-                  />
-                )}
-                {activeView === VIEWS.KANBAN && (
-                  <KanbanBoard
-                    tasks={tasks}
-                    onAddTask={handleAddTask}
-                    onToggle={toggleTask}
-                    onDelete={deleteTask}
-                    onOpen={setSelectedTask}
-                    onChangeStatus={changeStatus}
-                    onToggleSubtask={toggleSubtask}
-                  />
-                )}
-                {activeView === VIEWS.STATS && (
-                  <StatsPanel
-                    tasks={tasks}
-                    onToggle={toggleTask}
-                    onDelete={deleteTask}
-                    onOpen={setSelectedTask}
-                  />
-                )}
-              </motion.div>
-            </AnimatePresence>
-          </main>
+        {/* Десктоп-сайдбар */}
+        <div className="hidden lg:block flex-shrink-0">
+          <Sidebar
+            activeView={activeView}
+            onViewChange={setActiveView}
+            taskCount={activeTaskCount}
+            trashCount={trashed.length}
+          />
         </div>
 
-        {/* Модалка задачи */}
-        <AnimatePresence>
-          {selectedTask && (
-            <TaskModal
-              task={tasks.find(t => t.id === selectedTask.id) || selectedTask}
-              onClose={() => setSelectedTask(null)}
-              onUpdate={updateTask}
-              onAddSubtask={addSubtask}
-              onToggleSubtask={toggleSubtask}
-              onDeleteSubtask={deleteSubtask}
-            />
-          )}
-        </AnimatePresence>
+        {/* Контент */}
+        <main className="flex-1 px-4 lg:px-8 py-8 min-w-0">
 
-        <PwaPrompt />
+          {/* Мобильная шапка */}
+          <div className="flex items-center justify-between mb-4 lg:hidden">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="p-2 rounded-xl hover:bg-theme-elevated
+                  text-theme-muted transition-colors cursor-pointer"
+              >
+                <Menu size={20} />
+              </button>
+              <span className="font-bold text-theme-main">TaskFlow</span>
+            </div>
+            <UserMenu user={user} onSignOut={signOut} />
+          </div>
+
+          {/* Десктоп: UserMenu справа */}
+          <div className="hidden lg:flex justify-end mb-4">
+            <UserMenu user={user} onSignOut={signOut} />
+          </div>
+
+          {/* Индикатор синхронизации */}
+          <AnimatePresence>
+            {tasksLoading && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1,  y:  0 }}
+                exit={{   opacity: 0,  y: -8 }}
+                className="mb-4 flex items-center gap-2 text-xs text-theme-muted"
+              >
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                  className="w-3 h-3 border-2 border-primary
+                    border-t-transparent rounded-full"
+                />
+                Синхронизация...
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <Header view={activeView} />
+
+          {/* Контент вида */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeView}
+              initial={{ opacity: 0, y: 8  }}
+              animate={{ opacity: 1, y: 0  }}
+              exit={{   opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+            >
+              {activeView === VIEWS.LIST && (
+                <TaskList
+                  tasks={tasks}
+                  onAddTask={handleAddTask}
+                  onToggle={toggleTask}
+                  onDelete={handleDeleteRequest}
+                  onOpen={setSelectedTask}
+                  onToggleSubtask={toggleSubtask}
+                />
+              )}
+              {activeView === VIEWS.KANBAN && (
+                <KanbanBoard
+                  tasks={tasks}
+                  onAddTask={handleAddTask}
+                  onToggle={toggleTask}
+                  onDelete={handleDeleteRequest}
+                  onOpen={setSelectedTask}
+                  onChangeStatus={changeStatus}
+                  onToggleSubtask={toggleSubtask}
+                />
+              )}
+              {activeView === VIEWS.STATS && (
+                <StatsPanel
+                  tasks={tasks}
+                  onToggle={toggleTask}
+                  onDelete={handleDeleteRequest}
+                  onOpen={setSelectedTask}
+                  onToggleSubtask={toggleSubtask}
+                />
+              )}
+              {activeView === VIEWS.TRASH && (
+                <TrashPanel
+                  trashed={trashed}
+                  onRestore={restoreTask}
+                  onPermanentDelete={permanentDelete}
+                  onEmptyTrash={emptyTrash}
+                  onBack={() => setActiveView(VIEWS.LIST)}
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </main>
       </div>
+
+      {/* ── Модалка задачи ───────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {selectedTask && (
+          <TaskModal
+            task={tasks.find(t => t.id === selectedTask.id) || selectedTask}
+            onClose={() => setSelectedTask(null)}
+            onUpdate={updateTask}
+            onAddSubtask={addSubtask}
+            onToggleSubtask={toggleSubtask}
+            onDeleteSubtask={deleteSubtask}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── AlertModal подтверждения удаления ───────────────────────────── */}
+      <AlertModal
+        isOpen={!!deleteAlert}
+        title="Переместить в корзину?"
+        message={`Задача "${deleteAlert?.title}" будет перемещена в корзину. Вы сможете восстановить её позже.`}
+        confirmLabel="В корзину"
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteAlert(null)}
+      />
+
+      <PwaPrompt />
     </div>
   );
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   UserMenu — аватар пользователя + кнопка выхода
+   UserMenu — аватар + выпадающее меню выхода
    ───────────────────────────────────────────────────────────────────────────── */
 function UserMenu({ user, onSignOut }) {
   const [open, setOpen] = useState(false);
@@ -241,34 +282,36 @@ function UserMenu({ user, onSignOut }) {
       <button
         onClick={() => setOpen(v => !v)}
         className="flex items-center gap-2 px-3 py-1.5 rounded-xl
-          hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+          hover:bg-theme-elevated text-theme-muted
+          transition-colors cursor-pointer"
       >
-        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-400
-          to-indigo-500 flex items-center justify-center">
-          <User size={13} className="text-white" />
+        <div className="w-7 h-7 rounded-full bg-primary
+          flex items-center justify-center">
+          <User size={13} className="text-primary-fg" />
         </div>
-        <span className="text-xs font-medium text-slate-600 dark:text-slate-400
+        <span className="text-xs font-medium text-theme-muted
           max-w-[120px] truncate hidden sm:block">
-          {user.email}
+          {user?.email || 'Гость'}
         </span>
       </button>
 
       <AnimatePresence>
         {open && (
           <>
-            {/* Закрытие по клику вне меню */}
             <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: -4 }}
               animate={{ opacity: 1, scale: 1,    y:  0 }}
               exit={{   opacity: 0, scale: 0.95, y: -4 }}
               transition={{ duration: 0.15 }}
-              className="absolute right-0 top-full mt-1 z-20 bg-white dark:bg-slate-900
-                border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl
-                overflow-hidden min-w-[160px]"
+              className="absolute right-0 top-full mt-1 z-20
+                bg-theme-surface border border-theme
+                rounded-card shadow-modal overflow-hidden min-w-[160px]"
             >
-              <div className="px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                <p className="text-xs text-slate-400 truncate">{user.email}</p>
+              <div className="px-3 py-2.5 border-b border-theme">
+                <p className="text-xs text-theme-muted truncate">
+                  {user?.email || 'Гостевой аккаунт'}
+                </p>
               </div>
               <button
                 onClick={() => { onSignOut(); setOpen(false); }}
@@ -284,5 +327,67 @@ function UserMenu({ user, onSignOut }) {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   GuestBanner — баннер гостевого режима.
+   ✅ ИСПРАВЛЕНО: получает upgradeGuest и error через пропсы,
+   не вызывает useAuth() повторно
+   ───────────────────────────────────────────────────────────────────────────── */
+function GuestBanner({ upgradeGuest, error }) {
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+
+  return (
+    <>
+      <motion.div
+        initial={{ y: -40 }}
+        animate={{ y: 0 }}
+        exit={{   y: -40 }}
+        className="bg-amber-500 text-white text-xs font-medium
+          px-4 py-2 flex items-center justify-center gap-3"
+      >
+        <span>Вы в гостевом режиме — данные привязаны к этому устройству</span>
+        <button
+          onClick={() => setUpgradeOpen(true)}
+          className="underline underline-offset-2 hover:no-underline
+            font-semibold cursor-pointer whitespace-nowrap"
+        >
+          Создать аккаунт →
+        </button>
+      </motion.div>
+
+      <AnimatePresence>
+        {upgradeOpen && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{   opacity: 0 }}
+          >
+            <div
+              className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+              onClick={() => setUpgradeOpen(false)}
+            />
+            <motion.div
+              className="relative w-full max-w-sm"
+              initial={{ scale: 0.95, y: 16 }}
+              animate={{ scale: 1,    y: 0  }}
+              exit={{   scale: 0.95, y: 16 }}
+            >
+              <AuthModal
+                isGuest
+                onUpgradeGuest={async (email, pass) => {
+                  const ok = await upgradeGuest(email, pass);
+                  if (ok) setUpgradeOpen(false);
+                  return ok;
+                }}
+                error={error}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

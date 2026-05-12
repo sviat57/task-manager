@@ -3,30 +3,32 @@ import { supabase } from '../lib/supabase';
 import { generateId } from '../utils/helpers';
 
 /**
- * Хук задач с Supabase backend.
+ * useTasks — главный хук работы с задачами.
  *
- * Принимает user — объект авторизованного пользователя.
- * Если user === null — задачи не загружаются.
- *
- * Все CRUD-операции оптимистичны: сначала обновляем локальный стейт
- * (UI реагирует мгновенно), затем синхронизируем с базой.
- * При ошибке — откатываем стейт назад.
+ * Новое в этой версии:
+ *  • Soft-delete: moveToTrash / restoreTask / permanentDelete
+ *  • tasks    — только живые задачи (is_deleted = false)
+ *  • trashed  — только задачи в корзине (is_deleted = true)
+ *  • Умный Канбан (двусторонний):
+ *      todo → inprogress  когда хоть одна подзадача выполнена
+ *      inprogress → todo  когда сняты ВСЕ галочки подзадач
  */
 export function useTasks(user) {
-  const [tasks,   setTasks]   = useState([]);
+  const [tasks,   setTasks]   = useState([]);   // живые задачи
+  const [trashed, setTrashed] = useState([]);   // корзина
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState(null);
 
-  // ── Загрузка задач при смене пользователя ──────────────────────────────────
+  // ── Загрузка при смене пользователя ───────────────────────────────────────
   useEffect(() => {
-    if (!user) { setTasks([]); return; }
-    fetchTasks();
-    const unsub = subscribeToRealtime();
-    return () => { unsub(); };
+    if (!user) { setTasks([]); setTrashed([]); return; }
+    fetchAll();
+    const unsub = subscribeRealtime();
+    return () => unsub();
   }, [user?.id]);
 
-  // ── Первичная загрузка из БД ───────────────────────────────────────────────
-  const fetchTasks = async () => {
+  // ── Загрузить все задачи (живые + корзина) ────────────────────────────────
+  const fetchAll = async () => {
     setLoading(true);
     setError(null);
     try {
@@ -37,8 +39,10 @@ export function useTasks(user) {
         .order('created_at', { ascending: false });
 
       if (err) throw err;
-      // Преобразуем snake_case Supabase → camelCase приложения
-      setTasks(data.map(dbToApp));
+
+      const all = data.map(dbToApp);
+      setTasks(all.filter(t => !t.isDeleted));
+      setTrashed(all.filter(t => t.isDeleted));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -46,43 +50,49 @@ export function useTasks(user) {
     }
   };
 
-  // ── Realtime-подписка: слушаем INSERT/UPDATE/DELETE в таблице tasks ────────
-  const subscribeToRealtime = () => {
+  // ── Realtime ──────────────────────────────────────────────────────────────
+  const subscribeRealtime = () => {
     const channel = supabase
       .channel(`tasks:${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'tasks',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          const { eventType, new: newRow, old: oldRow } = payload;
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'tasks',
+        filter: `user_id=eq.${user.id}`,
+      }, ({ eventType, new: n, old: o }) => {
 
-          setTasks(prev => {
-            switch (eventType) {
-              case 'INSERT':
-                // Не дублируем если уже добавили оптимистично
-                if (prev.find(t => t.id === newRow.id)) return prev;
-                return [dbToApp(newRow), ...prev];
-              case 'UPDATE':
-                return prev.map(t => t.id === newRow.id ? dbToApp(newRow) : t);
-              case 'DELETE':
-                return prev.filter(t => t.id !== oldRow.id);
-              default:
-                return prev;
-            }
+        const upsert = (prev, row) => {
+          const exists = prev.find(t => t.id === row.id);
+          return exists
+            ? prev.map(t => t.id === row.id ? row : t)
+            : [row, ...prev];
+        };
+
+        if (eventType === 'DELETE') {
+          setTasks(p => p.filter(t => t.id !== o.id));
+          setTrashed(p => p.filter(t => t.id !== o.id));
+          return;
+        }
+
+        const item = dbToApp(n);
+
+        if (item.isDeleted) {
+          // Переходит в корзину
+          setTasks(p => p.filter(t => t.id !== item.id));
+          setTrashed(p => upsert(p, item));
+        } else {
+          // Живая задача
+          setTrashed(p => p.filter(t => t.id !== item.id));
+          setTasks(p => {
+            if (eventType === 'INSERT' && p.find(t => t.id === item.id)) return p;
+            return upsert(p, item);
           });
         }
-      )
+      })
       .subscribe();
 
     return () => supabase.removeChannel(channel);
   };
 
-  // ── Конвертер: БД (snake_case) → приложение (camelCase) ───────────────────
+  // ── Конвертеры ────────────────────────────────────────────────────────────
   const dbToApp = (row) => ({
     id:          row.id,
     title:       row.title,
@@ -95,9 +105,10 @@ export function useTasks(user) {
     completed:   row.completed,
     completedAt: row.completed_at,
     createdAt:   row.created_at,
+    isDeleted:   row.is_deleted,
+    deletedAt:   row.deleted_at,
   });
 
-  // ── Конвертер: приложение → БД ─────────────────────────────────────────────
   const appToDb = (task) => ({
     id:           task.id,
     user_id:      user.id,
@@ -110,113 +121,92 @@ export function useTasks(user) {
     status:       task.status       || 'todo',
     completed:    task.completed    || false,
     completed_at: task.completedAt  || null,
+    is_deleted:   task.isDeleted    || false,
+    deleted_at:   task.deletedAt    || null,
   });
 
-  // ── Создать задачу ──────────────────────────────────────────────────────────
-  const addTask = useCallback(async (taskData) => {
-    const newTask = {
-      id:          generateId(),
-      title:       '',
-      description: '',
-      priority:    'medium',
-      category:    'work',
-      deadline:    '',
-      subtasks:    [],
-      status:      'todo',
-      completed:   false,
-      completedAt: null,
-      createdAt:   new Date().toISOString(),
-      ...taskData,
-    };
+  // ── Оптимистичное обновление с откатом ───────────────────────────────────
+  const optimistic = useCallback(async (id, changes, dbChanges) => {
+    // Сохраняем старые значения для отката
+    let oldTask = null;
+    const isLive = !changes.isDeleted;
 
-    // Оптимистичное обновление UI
-    setTasks(prev => [newTask, ...prev]);
+    const updater = (setter) => setter(prev => {
+      const found = prev.find(t => t.id === id);
+      if (found) oldTask = found;
+      return prev.map(t => t.id === id ? { ...t, ...changes } : t);
+    });
+
+    if (isLive) updater(setTasks); else updater(setTrashed);
 
     const { error: err } = await supabase
       .from('tasks')
-      .insert(appToDb(newTask));
+      .update(dbChanges)
+      .eq('id', id);
 
     if (err) {
-      // Откат при ошибке
+      // Откат
+      if (oldTask) {
+        if (isLive) setTasks(p => p.map(t => t.id === id ? oldTask : t));
+        else setTrashed(p => p.map(t => t.id === id ? oldTask : t));
+      }
+      setError(err.message);
+    }
+  }, [user]);
+
+  // ── CRUD ──────────────────────────────────────────────────────────────────
+
+  const addTask = useCallback(async (taskData) => {
+    const newTask = {
+      id: generateId(),
+      title: '', description: '', priority: 'medium',
+      category: 'work', deadline: '', subtasks: [],
+      status: 'todo', completed: false, completedAt: null,
+      createdAt: new Date().toISOString(),
+      isDeleted: false, deletedAt: null,
+      ...taskData,
+    };
+    setTasks(prev => [newTask, ...prev]);
+    const { error: err } = await supabase.from('tasks').insert(appToDb(newTask));
+    if (err) {
       setTasks(prev => prev.filter(t => t.id !== newTask.id));
       setError(err.message);
     }
-
     return newTask;
   }, [user]);
 
-  // ── Обновить задачу ─────────────────────────────────────────────────────────
   const updateTask = useCallback(async (id, changes) => {
-    // Сохраняем предыдущий стейт для отката
     setTasks(prev => {
       const old = prev.find(t => t.id === id);
       if (!old) return prev;
-
       const updated = { ...old, ...changes };
-
-      // Пишем в БД асинхронно
-      supabase
-        .from('tasks')
-        .update(appToDb(updated))
-        .eq('id', id)
+      supabase.from('tasks').update(appToDb(updated)).eq('id', id)
         .then(({ error: err }) => {
           if (err) {
-            // Откат
             setTasks(p => p.map(t => t.id === id ? old : t));
             setError(err.message);
           }
         });
-
       return prev.map(t => t.id === id ? updated : t);
     });
   }, [user]);
 
-  // ── Удалить задачу ──────────────────────────────────────────────────────────
-  const deleteTask = useCallback(async (id) => {
-    const backup = tasks.find(t => t.id === id);
-    setTasks(prev => prev.filter(t => t.id !== id));
-
-    const { error: err } = await supabase
-      .from('tasks')
-      .delete()
-      .eq('id', id);
-
-    if (err) {
-      setTasks(prev => backup ? [backup, ...prev] : prev);
-      setError(err.message);
-    }
-  }, [tasks, user]);
-
-  // ── Переключить выполнение ──────────────────────────────────────────────────
   const toggleTask = useCallback(async (id) => {
     const task = tasks.find(t => t.id === id);
     if (!task) return;
-
-    const completed    = !task.completed;
-    const completedAt  = completed ? new Date().toISOString() : null;
-    const status       = completed ? 'done' : 'todo';
-
+    const completed   = !task.completed;
+    const completedAt = completed ? new Date().toISOString() : null;
+    const status      = completed ? 'done' : 'todo';
     await updateTask(id, { completed, completedAt, status });
   }, [tasks, updateTask]);
 
-  // ── Изменить статус (Канбан) ────────────────────────────────────────────────
   const changeStatus = useCallback(async (id, status) => {
     const completed   = status === 'done';
     const completedAt = completed ? new Date().toISOString() : null;
     await updateTask(id, { status, completed, completedAt });
   }, [updateTask]);
 
-  // ── Добавить подзадачу ──────────────────────────────────────────────────────
-  const addSubtask = useCallback(async (taskId, title) => {
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-
-    const subtask  = { id: generateId(), title, completed: false };
-    const subtasks = [...task.subtasks, subtask];
-    await updateTask(taskId, { subtasks });
-  }, [tasks, updateTask]);
-
-  // ── Переключить подзадачу + умный статус Канбана ───────────────────────────
+  // ── Двусторонний умный Канбан ─────────────────────────────────────────────
   const toggleSubtask = useCallback(async (taskId, subtaskId) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
@@ -225,26 +215,112 @@ export function useTasks(user) {
       s.id === subtaskId ? { ...s, completed: !s.completed } : s
     );
 
-    const anyDone = subtasks.some(s => s.completed);
+    const doneCount = subtasks.filter(s => s.completed).length;
     let newStatus = task.status;
-    if (task.status === 'todo' && anyDone) newStatus = 'inprogress';
+
+    if (task.status === 'todo' && doneCount > 0) {
+      // Хоть одна выполнена — переводим в процесс
+      newStatus = 'inprogress';
+    } else if (task.status === 'inprogress' && doneCount === 0) {
+      // Все сняты — возвращаем в todo
+      newStatus = 'todo';
+    }
 
     await updateTask(taskId, { subtasks, status: newStatus });
   }, [tasks, updateTask]);
 
-  // ── Удалить подзадачу ───────────────────────────────────────────────────────
+  const addSubtask = useCallback(async (taskId, title) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    const subtask  = { id: generateId(), title, completed: false };
+    await updateTask(taskId, { subtasks: [...task.subtasks, subtask] });
+  }, [tasks, updateTask]);
+
   const deleteSubtask = useCallback(async (taskId, subtaskId) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
-
-    const subtasks = task.subtasks.filter(s => s.id !== subtaskId);
-    await updateTask(taskId, { subtasks });
+    await updateTask(taskId, {
+      subtasks: task.subtasks.filter(s => s.id !== subtaskId),
+    });
   }, [tasks, updateTask]);
 
+  // ── Корзина ───────────────────────────────────────────────────────────────
+
+  /** Мягкое удаление: задача уходит в корзину */
+  const moveToTrash = useCallback(async (id) => {
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+
+    const deletedAt = new Date().toISOString();
+
+    // Оптимистично: убираем из живых, добавляем в корзину
+    setTasks(p => p.filter(t => t.id !== id));
+    setTrashed(p => [{ ...task, isDeleted: true, deletedAt }, ...p]);
+
+    const { error: err } = await supabase
+      .from('tasks')
+      .update({ is_deleted: true, deleted_at: deletedAt })
+      .eq('id', id);
+
+    if (err) {
+      // Откат
+      setTasks(p => [task, ...p]);
+      setTrashed(p => p.filter(t => t.id !== id));
+      setError(err.message);
+    }
+  }, [tasks]);
+
+  /** Восстановление из корзины */
+  const restoreTask = useCallback(async (id) => {
+    const task = trashed.find(t => t.id === id);
+    if (!task) return;
+
+    const restored = { ...task, isDeleted: false, deletedAt: null };
+    setTrashed(p => p.filter(t => t.id !== id));
+    setTasks(p => [restored, ...p]);
+
+    const { error: err } = await supabase
+      .from('tasks')
+      .update({ is_deleted: false, deleted_at: null })
+      .eq('id', id);
+
+    if (err) {
+      setTasks(p => p.filter(t => t.id !== id));
+      setTrashed(p => [task, ...p]);
+      setError(err.message);
+    }
+  }, [trashed]);
+
+  /** Безвозвратное удаление (только из корзины) */
+  const permanentDelete = useCallback(async (id) => {
+    const task = trashed.find(t => t.id === id);
+    setTrashed(p => p.filter(t => t.id !== id));
+    const { error: err } = await supabase.from('tasks').delete().eq('id', id);
+    if (err) {
+      setTrashed(p => task ? [task, ...p] : p);
+      setError(err.message);
+    }
+  }, [trashed]);
+
+  /** Очистить всю корзину */
+  const emptyTrash = useCallback(async () => {
+    const ids = trashed.map(t => t.id);
+    setTrashed([]);
+    const { error: err } = await supabase
+      .from('tasks')
+      .delete()
+      .in('id', ids);
+    if (err) {
+      setTrashed(trashed);
+      setError(err.message);
+    }
+  }, [trashed]);
+
   return {
-    tasks, loading, error,
-    addTask, updateTask, deleteTask,
+    tasks, trashed, loading, error,
+    addTask, updateTask,
     toggleTask, changeStatus,
     addSubtask, toggleSubtask, deleteSubtask,
+    moveToTrash, restoreTask, permanentDelete, emptyTrash,
   };
 }

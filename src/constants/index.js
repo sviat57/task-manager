@@ -56,6 +56,7 @@ export const VIEWS = {
   LIST:   'list',
   KANBAN: 'kanban',
   STATS:  'stats',
+  TRASH:  'trash',   // ← новый
 };
 
 // ─── Сортировка ───────────────────────────────────────────────────────────────

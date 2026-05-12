@@ -1,33 +1,165 @@
 @import "tailwindcss";
-@custom-variant dark (&:where(.dark, .dark *));
 
+/* ── Базовые переменные (светлая тема по умолчанию) ─────────────────────── */
 @layer base {
   :root {
-    --radius: 0.75rem;
+    --bg-base:             #f8fafc;
+    --bg-surface:          #ffffff;
+    --bg-elevated:         #f1f5f9;
+    --color-primary:       #6d28d9;
+    --color-primary-hover: #5b21b6;
+    --color-primary-fg:    #ffffff;
+    --color-text:          #0f172a;
+    --color-muted:         #64748b;
+    --color-border:        #e2e8f0;
+    --font-main:           'DM Sans', sans-serif;
+    --radius-card:         1rem;
   }
-  * {
-    box-sizing: border-box;
+
+  html {
+    font-family: var(--font-main);
   }
 
   body {
-    @apply antialiased;
+    background-color: var(--bg-base);
+    color: var(--color-text);
+    font-family: var(--font-main);
+    transition: background-color 0.25s ease, color 0.2s ease;
   }
 
-  /* Кастомный скроллбар */
-  ::-webkit-scrollbar {
-    width: 6px;
+  /* ── ГЛОБАЛЬНЫЙ ПЕРЕХВАТ: все "белые" элементы → тема ─────────────────
+     Это ключевой блок — перекрывает bg-white, bg-slate-* из компонентов
+     ─────────────────────────────────────────────────────────────────── */
+
+  /* Модалки, карточки, панели */
+  .bg-white,
+  [class*="bg-white"] {
+    background-color: var(--bg-surface) !important;
+    color: var(--color-text) !important;
   }
-  ::-webkit-scrollbar-track {
-    @apply bg-transparent;
+
+  /* Тёмные карточки в dark-режиме */
+  .dark .bg-slate-900,
+  [class*="dark:bg-slate-900"] {
+    background-color: var(--bg-surface) !important;
   }
+
+  .dark .bg-slate-800,
+  [class*="dark:bg-slate-800"] {
+    background-color: var(--bg-elevated) !important;
+  }
+
+  /* Фон страницы */
+  .bg-slate-50,
+  .bg-slate-100 {
+    background-color: var(--bg-elevated) !important;
+  }
+
+  .dark .bg-slate-950 {
+    background-color: var(--bg-base) !important;
+  }
+
+  /* Тексты */
+  .text-slate-900,
+  .dark .text-slate-100,
+  .dark .text-slate-200 {
+    color: var(--color-text) !important;
+  }
+
+  .text-slate-500,
+  .text-slate-400,
+  .dark .text-slate-400,
+  .dark .text-slate-500 {
+    color: var(--color-muted) !important;
+  }
+
+  .text-slate-700,
+  .text-slate-800,
+  .dark .text-slate-300 {
+    color: var(--color-text) !important;
+  }
+
+  /* Границы */
+  .border-slate-200,
+  .dark .border-slate-700,
+  .dark .border-slate-800 {
+    border-color: var(--color-border) !important;
+  }
+
+  .border-slate-100,
+  .dark .border-slate-800 {
+    border-color: var(--color-border) !important;
+  }
+
+  /* Hover-фоны */
+  .hover\:bg-slate-100:hover,
+  .dark .hover\:bg-slate-800:hover {
+    background-color: var(--bg-elevated) !important;
+  }
+
+  /* Скроллбар */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    @apply bg-slate-300 dark:bg-slate-600 rounded-full;
+    background-color: var(--color-border);
+    border-radius: 999px;
   }
 
-  /* Плавное зачёркивание при выполнении */
-  .task-complete-text {
-    text-decoration: line-through;
-    text-decoration-color: currentColor;
-    transition: text-decoration 0.3s ease;
+  /* Inputs, selects, textareas */
+  input, textarea, select {
+    background-color: var(--bg-elevated) !important;
+    color: var(--color-text) !important;
+    border-color: var(--color-border) !important;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-muted) !important;
+    opacity: 0.7;
+  }
+}
+
+/* ── Utility классы темы ─────────────────────────────────────────────────── */
+@layer utilities {
+  /* Фоны */
+  .bg-theme-base     { background-color: var(--bg-base) !important; }
+  .bg-theme-surface  { background-color: var(--bg-surface) !important; }
+  .bg-theme-elevated { background-color: var(--bg-elevated) !important; }
+  .bg-primary        { background-color: var(--color-primary) !important; }
+  .bg-primary-hover  { background-color: var(--color-primary-hover) !important; }
+
+  .hover\:bg-theme-elevated:hover { background-color: var(--bg-elevated) !important; }
+  .hover\:bg-primary-hover:hover  { background-color: var(--color-primary-hover) !important; }
+
+  /* Тексты */
+  .text-theme-main  { color: var(--color-text) !important; }
+  .text-theme-muted { color: var(--color-muted) !important; }
+  .text-primary     { color: var(--color-primary) !important; }
+  .text-primary-fg  { color: var(--color-primary-fg) !important; }
+
+  /* Границы */
+  .border-theme   { border-color: var(--color-border) !important; }
+  .border-primary { border-color: var(--color-primary) !important; }
+
+  /* Скругления */
+  .rounded-card { border-radius: var(--radius-card) !important; }
+
+  /* Тени */
+  .shadow-card {
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1),
+                0 1px 2px -1px rgb(0 0 0 / 0.1) !important;
+  }
+  .shadow-card-hover {
+    box-shadow: 0 4px 16px 0 rgb(0 0 0 / 0.15),
+                0 2px 4px -1px rgb(0 0 0 / 0.1) !important;
+  }
+  .shadow-modal {
+    box-shadow: 0 20px 60px -10px rgb(0 0 0 / 0.4) !important;
+  }
+
+  /* Фокус */
+  .focus\:ring-primary:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 25%, transparent) !important;
   }
 }

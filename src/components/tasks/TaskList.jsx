@@ -4,33 +4,26 @@ import { Plus, Search, SlidersHorizontal, CheckCircle2, LayoutList, LayoutGrid }
 import { TaskItem }  from './TaskItem';
 import { Button }    from '../ui/Button';
 import { PRIORITIES, CATEGORIES, SORT_OPTIONS } from '../../constants';
-
-/**
- * TaskList — список задач с поиском, фильтрами, сортировкой и
- * переключателем List / Grid.
- *
- * Новый пропс: onToggleSubtask — передаём в TaskItem для инлайн-чекбоксов.
- */
+ 
 export function TaskList({ tasks, onAddTask, onToggle, onDelete, onOpen, onToggleSubtask }) {
   const [search,         setSearch]         = useState('');
   const [sortBy,         setSortBy]         = useState('createdAt_desc');
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
   const [showFilters,    setShowFilters]    = useState(false);
-
-  // 'list' | 'grid' — сохраняем в localStorage чтобы помнить выбор
+ 
   const [viewMode, setViewMode] = useState(
     () => localStorage.getItem('tm_listview') || 'list'
   );
-
+ 
   const handleViewMode = (mode) => {
     setViewMode(mode);
     localStorage.setItem('tm_listview', mode);
   };
-
+ 
   const processed = useMemo(() => {
     let result = tasks.filter(t => !t.completed);
-
+ 
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(t =>
@@ -40,7 +33,7 @@ export function TaskList({ tasks, onAddTask, onToggle, onDelete, onOpen, onToggl
     }
     if (filterPriority !== 'all') result = result.filter(t => t.priority === filterPriority);
     if (filterCategory !== 'all') result = result.filter(t => t.category === filterCategory);
-
+ 
     return [...result].sort((a, b) => {
       switch (sortBy) {
         case 'createdAt_asc':  return new Date(a.createdAt) - new Date(b.createdAt);
@@ -51,30 +44,31 @@ export function TaskList({ tasks, onAddTask, onToggle, onDelete, onOpen, onToggl
       }
     });
   }, [tasks, search, sortBy, filterPriority, filterCategory]);
-
+ 
   return (
     <div className="space-y-4">
-
-      {/* ── Тулбар: поиск + переключатель вида + кнопки ─────────────────── */}
+ 
+      {/* ── Тулбар ───────────────────────────────────────────────────────── */}
       <div className="space-y-3">
         <div className="flex gap-2">
+ 
           {/* Поиск */}
           <div className="relative flex-1">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-theme-muted" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Поиск задач..."
-              className="w-full pl-9 pr-4 py-2 text-sm bg-white dark:bg-slate-900
-                border border-slate-200 dark:border-slate-700 rounded-xl outline-none
-                text-slate-700 dark:text-slate-300 placeholder:text-slate-400
-                focus:ring-2 focus:ring-violet-500/30 transition-all"
+              className="w-full pl-9 pr-4 py-2 text-sm
+                bg-theme-surface border border-theme rounded-xl outline-none
+                text-theme-main placeholder:text-theme-muted
+                transition-all"
+              style={{ fontFamily: 'var(--font-main)' }}
             />
           </div>
-
-          {/* ── Переключатель List / Grid ──────────────────────────────── */}
-          <div className="flex items-center bg-slate-100 dark:bg-slate-800
-            rounded-xl p-1 gap-0.5">
+ 
+          {/* Переключатель List / Grid */}
+          <div className="flex items-center bg-theme-elevated rounded-xl p-1 gap-0.5">
             <ViewToggleBtn
               active={viewMode === 'list'}
               onClick={() => handleViewMode('list')}
@@ -90,18 +84,35 @@ export function TaskList({ tasks, onAddTask, onToggle, onDelete, onOpen, onToggl
               <LayoutGrid size={15} />
             </ViewToggleBtn>
           </div>
-
-          <Button variant="outline" onClick={() => setShowFilters(v => !v)}>
+ 
+          {/* Кнопка фильтров */}
+          <button
+            onClick={() => setShowFilters(v => !v)}
+            className={`
+              inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium
+              border border-theme transition-colors duration-150 cursor-pointer
+              ${showFilters
+                ? 'bg-primary text-primary-fg border-primary'
+                : 'bg-theme-surface text-theme-muted hover:bg-theme-elevated hover:text-theme-main'
+              }
+            `}
+          >
             <SlidersHorizontal size={14} />
-          </Button>
-
-          <Button variant="primary" onClick={onAddTask}>
+          </button>
+ 
+          {/* Кнопка новой задачи */}
+          <button
+            onClick={onAddTask}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm
+              font-medium bg-primary hover:bg-primary-hover text-primary-fg
+              transition-colors duration-150 cursor-pointer shadow-card"
+          >
             <Plus size={15} />
             <span className="hidden sm:inline">Задача</span>
-          </Button>
+          </button>
         </div>
-
-        {/* Фильтры */}
+ 
+        {/* Панель фильтров */}
         <AnimatePresence>
           {showFilters && (
             <motion.div
@@ -110,37 +121,46 @@ export function TaskList({ tasks, onAddTask, onToggle, onDelete, onOpen, onToggl
               exit={{   opacity: 0, height: 0 }}
               className="overflow-hidden"
             >
-              <div className="flex gap-3 flex-wrap p-3 bg-slate-50 dark:bg-slate-800/50
-                rounded-xl border border-slate-200 dark:border-slate-700">
+              <div className="flex gap-3 flex-wrap p-3 bg-theme-elevated
+                rounded-xl border border-theme">
+ 
+                {/* Сортировка */}
                 <select
                   value={sortBy}
                   onChange={e => setSortBy(e.target.value)}
-                  className="text-xs bg-white dark:bg-slate-800 border border-slate-200
-                    dark:border-slate-700 rounded-lg px-2 py-1.5 outline-none
-                    text-slate-700 dark:text-slate-300 cursor-pointer"
+                  className="text-xs bg-theme-surface border border-theme
+                    rounded-lg px-2 py-1.5 outline-none
+                    text-theme-main cursor-pointer"
+                  style={{ fontFamily: 'var(--font-main)' }}
                 >
                   {SORT_OPTIONS.map(o => (
                     <option key={o.value} value={o.value}>{o.label}</option>
                   ))}
                 </select>
+ 
+                {/* Приоритет */}
                 <select
                   value={filterPriority}
                   onChange={e => setFilterPriority(e.target.value)}
-                  className="text-xs bg-white dark:bg-slate-800 border border-slate-200
-                    dark:border-slate-700 rounded-lg px-2 py-1.5 outline-none
-                    text-slate-700 dark:text-slate-300 cursor-pointer"
+                  className="text-xs bg-theme-surface border border-theme
+                    rounded-lg px-2 py-1.5 outline-none
+                    text-theme-main cursor-pointer"
+                  style={{ fontFamily: 'var(--font-main)' }}
                 >
                   <option value="all">Все приоритеты</option>
                   {Object.entries(PRIORITIES).map(([k, p]) => (
                     <option key={k} value={k}>{p.label}</option>
                   ))}
                 </select>
+ 
+                {/* Категория */}
                 <select
                   value={filterCategory}
                   onChange={e => setFilterCategory(e.target.value)}
-                  className="text-xs bg-white dark:bg-slate-800 border border-slate-200
-                    dark:border-slate-700 rounded-lg px-2 py-1.5 outline-none
-                    text-slate-700 dark:text-slate-300 cursor-pointer"
+                  className="text-xs bg-theme-surface border border-theme
+                    rounded-lg px-2 py-1.5 outline-none
+                    text-theme-main cursor-pointer"
+                  style={{ fontFamily: 'var(--font-main)' }}
                 >
                   <option value="all">Все категории</option>
                   {CATEGORIES.map(c => (
@@ -152,8 +172,8 @@ export function TaskList({ tasks, onAddTask, onToggle, onDelete, onOpen, onToggl
           )}
         </AnimatePresence>
       </div>
-
-      {/* ── Список задач ─────────────────────────────────────────────────── */}
+ 
+      {/* ── Задачи ───────────────────────────────────────────────────────── */}
       <AnimatePresence mode="wait">
         <motion.div
           key={viewMode}
@@ -163,7 +183,6 @@ export function TaskList({ tasks, onAddTask, onToggle, onDelete, onOpen, onToggl
           transition={{ duration: 0.18 }}
           className={
             viewMode === 'grid'
-              // Адаптивная сетка: 1 колонка на мобиле, 2 на md, 3 на xl
               ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3'
               : 'space-y-2'
           }
@@ -181,18 +200,16 @@ export function TaskList({ tasks, onAddTask, onToggle, onDelete, onOpen, onToggl
               />
             ))}
           </AnimatePresence>
-
+ 
           {/* Пустое состояние */}
           {processed.length === 0 && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className={`text-center py-16
-                ${viewMode === 'grid' ? 'col-span-full' : ''}`}
+              className={`text-center py-16 ${viewMode === 'grid' ? 'col-span-full' : ''}`}
             >
-              <CheckCircle2 size={40}
-                className="mx-auto text-slate-200 dark:text-slate-700 mb-3" />
-              <p className="text-slate-400 dark:text-slate-600 text-sm font-medium">
+              <CheckCircle2 size={40} className="mx-auto text-theme-muted opacity-30 mb-3" />
+              <p className="text-theme-muted text-sm font-medium">
                 {search ? 'Ничего не найдено' : 'Задач нет — самое время создать!'}
               </p>
             </motion.div>
@@ -202,26 +219,20 @@ export function TaskList({ tasks, onAddTask, onToggle, onDelete, onOpen, onToggl
     </div>
   );
 }
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   ViewToggleBtn — кнопка переключения режима с анимацией активного состояния
-   ───────────────────────────────────────────────────────────────────────────── */
+ 
+/* ── ViewToggleBtn ───────────────────────────────────────────────────────── */
 function ViewToggleBtn({ active, onClick, children, title }) {
   return (
     <button
       onClick={onClick}
       title={title}
       className={`relative p-1.5 rounded-lg transition-colors duration-150 cursor-pointer
-        ${active
-          ? 'text-slate-700 dark:text-slate-200'
-          : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
-        }`}
+        ${active ? 'text-theme-main' : 'text-theme-muted hover:text-theme-main'}`}
     >
-      {/* Фоновый пиль активного состояния с layoutId для плавного перехода */}
       {active && (
         <motion.div
           layoutId="view-toggle-bg"
-          className="absolute inset-0 bg-white dark:bg-slate-700 rounded-lg shadow-sm"
+          className="absolute inset-0 bg-theme-surface rounded-lg shadow-card"
           transition={{ type: 'spring', bounce: 0.2, duration: 0.35 }}
         />
       )}
