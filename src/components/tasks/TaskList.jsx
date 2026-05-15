@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Plus, Search, SlidersHorizontal, CheckCircle2, LayoutList, LayoutGrid } from 'lucide-react';
 import { TaskItem }  from './TaskItem';
 import { PRIORITIES, CATEGORIES, SORT_OPTIONS } from '../../constants';
+import { compareByDeadline } from '../../utils/deadlineHelpers';
  
 /**
  * TaskList — адаптивный список задач.
@@ -18,7 +19,7 @@ import { PRIORITIES, CATEGORIES, SORT_OPTIONS } from '../../constants';
  */
 export function TaskList({ tasks, onAddTask, onToggle, onDelete, onOpen, onToggleSubtask }) {
   const [search,         setSearch]         = useState('');
-  const [sortBy,         setSortBy]         = useState('createdAt_desc');
+  const [sortBy,         setSortBy]         = useState('deadline_asc');
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
   const [showFilters,    setShowFilters]    = useState(false);
@@ -76,7 +77,7 @@ export function TaskList({ tasks, onAddTask, onToggle, onDelete, onOpen, onToggl
     return [...result].sort((a, b) => {
       switch (sortBy) {
         case 'createdAt_asc':  return new Date(a.createdAt) - new Date(b.createdAt);
-        case 'deadline_asc':   return (a.deadline || 'z').localeCompare(b.deadline || 'z');
+        case 'deadline_asc':   return compareByDeadline(a, b);
         case 'priority_desc':  return (PRIORITIES[b.priority]?.order||0) - (PRIORITIES[a.priority]?.order||0);
         case 'title_asc':      return a.title.localeCompare(b.title);
         default:               return new Date(b.createdAt) - new Date(a.createdAt);

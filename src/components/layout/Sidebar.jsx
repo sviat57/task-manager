@@ -1,12 +1,13 @@
 import { motion } from 'framer-motion';
-import { LayoutList, Kanban, BarChart2, CheckSquare, Trash2 } from 'lucide-react';
+import { LayoutList, Kanban, BarChart2, CheckSquare, Trash2, CalendarDays } from 'lucide-react';
 import { VIEWS } from '../../constants';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 
 const navItems = [
-  { id: VIEWS.LIST,   icon: LayoutList, label: 'Список'     },
-  { id: VIEWS.KANBAN, icon: Kanban,     label: 'Канбан'     },
-  { id: VIEWS.STATS,  icon: BarChart2,  label: 'Статистика' },
+  { id: VIEWS.LIST,     icon: LayoutList,   label: 'Все задачи' },
+  { id: VIEWS.CALENDAR, icon: CalendarDays, label: 'Дедлайны'   },
+  { id: VIEWS.KANBAN,   icon: Kanban,       label: 'Канбан'     },
+  { id: VIEWS.STATS,    icon: BarChart2,    label: 'Статистика' },
 ];
 
 // ✅ ИСПРАВЛЕНО: убраны неиспользуемые пропсы theme и onToggleTheme

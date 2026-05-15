@@ -8,9 +8,10 @@ import { Badge }       from '../ui/Badge';
 import { ProgressBar } from '../ui/ProgressBar';
 import { PRIORITIES, CATEGORIES } from '../../constants';
 import {
-  formatDeadline, isOverdue,
+  formatDeadline,
   getSubtaskProgress, getCategoryById
 } from '../../utils/helpers';
+import { getDeadlineUrgency } from '../../utils/deadlineHelpers';
  
 export function TaskItem({
   task,
@@ -27,9 +28,27 @@ export function TaskItem({
   const priority    = PRIORITIES[task.priority];
   const category    = getCategoryById(CATEGORIES, task.category);
   const progress    = getSubtaskProgress(task.subtasks);
-  const overdue     = !task.completed && isOverdue(task.deadline);
+  const urgency     = getDeadlineUrgency(task.deadline, task.completed);
   const deadline    = formatDeadline(task.deadline);
   const hasSubtasks = task.subtasks?.length > 0;
+
+  const urgencyCardClass = {
+    overdue:  'bg-theme-elevated border-theme opacity-80',
+    critical: 'border-red-400/80 bg-red-50/60 dark:bg-red-950/25 deadline-pulse',
+    urgent:   'border-orange-400/80 bg-orange-50/60 dark:bg-orange-950/25',
+    warning:  'border-amber-400/70 bg-amber-50/50 dark:bg-amber-950/20',
+    normal:   '',
+    none:     '',
+  }[urgency];
+
+  const urgencyDeadlineClass = {
+    overdue:  'text-theme-muted',
+    critical: 'text-red-600 dark:text-red-400 font-semibold',
+    urgent:   'text-orange-600 dark:text-orange-400 font-semibold',
+    warning:  'text-amber-600 dark:text-amber-400 font-medium',
+    normal:   'text-theme-muted',
+    none:     'text-theme-muted',
+  }[urgency];
  
   const handleCardClick = () => setSlideOver(true);
   const stop = (fn) => (e) => { e.stopPropagation(); fn?.(e); };
@@ -48,6 +67,7 @@ export function TaskItem({
           group relative cursor-pointer select-none
           bg-theme-surface border border-theme rounded-card
           transition-all duration-200 shadow-card
+          ${urgencyCardClass}
           ${task.completed
             ? 'opacity-60'
             : 'hover:shadow-card-hover hover:bg-theme-elevated'
@@ -90,7 +110,9 @@ export function TaskItem({
           <div className="flex-1 min-w-0">
             <p className={`
               font-medium text-sm leading-snug transition-all duration-300
-              ${task.completed ? 'line-through text-theme-muted' : 'text-theme-main'}
+              ${task.completed || urgency === 'overdue'
+                ? 'line-through text-theme-muted'
+                : 'text-theme-main'}
             `}>
               {task.title || (
                 <span className="text-theme-muted italic">Без названия</span>
@@ -110,11 +132,17 @@ export function TaskItem({
                 <Badge className={category.light}>{category.label}</Badge>
               )}
               {deadline && (
-                <span className={`flex items-center gap-1 text-xs font-medium
-                  ${overdue ? 'text-red-500' : 'text-theme-muted'}`}>
+                <span className={`flex items-center gap-1 text-xs flex-wrap ${urgencyDeadlineClass}`}>
                   <Clock size={10} />
                   {deadline}
-                  {overdue && <span className="font-normal opacity-75">· просрочено</span>}
+                  {urgency === 'urgent' && (
+                    <span className="font-bold uppercase tracking-wide">3 часа</span>
+                  )}
+                  {urgency === 'overdue' && (
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-theme-base text-theme-muted normal-case">
+                      Дедлайн истёк
+                    </span>
+                  )}
                 </span>
               )}
             </div>
@@ -218,7 +246,7 @@ export function TaskItem({
             priority={priority}
             category={category}
             deadline={deadline}
-            overdue={overdue}
+            urgency={urgency}
             progress={progress}
             onClose={() => setSlideOver(false)}
             onEdit={() => { setSlideOver(false); onOpen(task); }}
@@ -266,7 +294,7 @@ function InlineSubtask({ subtask, onToggle }) {
  
 /* ── TaskSlideOver ───────────────────────────────────────────────────────── */
 function TaskSlideOver({
-  task, priority, category, deadline, overdue, progress,
+  task, priority, category, deadline, urgency, progress,
   onClose, onEdit, onToggle, onToggleSubtask,
 }) {
   return (
@@ -343,9 +371,9 @@ function TaskSlideOver({
                 icon={<Calendar size={14} />}
                 label="Дедлайн"
                 value={deadline}
-                accent={overdue ? 'text-red-500' : 'text-theme-main'}
-                bg={overdue
-                  ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-900/40'
+                accent={urgency === 'overdue' ? 'text-theme-muted line-through' : 'text-theme-main'}
+                bg={urgency === 'overdue'
+                  ? 'bg-theme-elevated border-theme'
                   : 'bg-theme-elevated border-theme'
                 }
               />

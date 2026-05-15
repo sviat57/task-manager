@@ -9,10 +9,11 @@
 
 export function BottomNav({ activeView, onViewChange, trashCount }) {
   const items = [
-    { id: 'list',   icon: '☑️',  label: 'Задачи'  },
-    { id: 'kanban', icon: '📋',  label: 'Канбан'  },
-    { id: 'stats',  icon: '📊',  label: 'Статистика' },
-    { id: 'trash',  icon: '🗑️', label: 'Корзина', badge: trashCount },
+    { id: 'list',     icon: '☑️',  label: 'Задачи'   },
+    { id: 'calendar', icon: '📅',  label: 'Дедлайны' },
+    { id: 'kanban',   icon: '📋',  label: 'Канбан'   },
+    { id: 'stats',    icon: '📊',  label: 'Стат.'    },
+    { id: 'trash',    icon: '🗑️',  label: 'Корзина', badge: trashCount },
   ];
 
   return (

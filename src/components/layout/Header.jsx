@@ -2,10 +2,11 @@ import { motion } from 'framer-motion';
 import { VIEWS } from '../../constants';
 
 const titles = {
-  [VIEWS.LIST]:   { title: 'Мои задачи',    sub: 'Управляйте задачами эффективно' },
-  [VIEWS.KANBAN]: { title: 'Канбан-доска',  sub: 'Визуализируйте рабочий процесс' },
-  [VIEWS.STATS]:  { title: 'Статистика',    sub: 'Анализируйте свою продуктивность' },
-  [VIEWS.TRASH]: { title: 'Корзина', sub: 'Удалённые задачи можно восстановить' },
+  [VIEWS.LIST]:     { title: 'Мои задачи',           sub: 'Управляйте задачами эффективно' },
+  [VIEWS.CALENDAR]: { title: 'Календарь дедлайнов',  sub: 'Задачи по дням и фокус на сегодня' },
+  [VIEWS.KANBAN]:   { title: 'Канбан-доска',         sub: 'Визуализируйте рабочий процесс' },
+  [VIEWS.STATS]:    { title: 'Статистика',           sub: 'Анализируйте свою продуктивность' },
+  [VIEWS.TRASH]:    { title: 'Корзина',              sub: 'Удалённые задачи можно восстановить' },
 };
 
 export function Header({ view }) {

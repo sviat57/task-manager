@@ -53,10 +53,11 @@ export const KANBAN_COLUMNS = [
 
 // ─── Навигация ────────────────────────────────────────────────────────────────
 export const VIEWS = {
-  LIST:   'list',
-  KANBAN: 'kanban',
-  STATS:  'stats',
-  TRASH:  'trash',   // ← новый
+  LIST:     'list',
+  CALENDAR: 'calendar',
+  KANBAN:   'kanban',
+  STATS:    'stats',
+  TRASH:    'trash',
 };
 
 // ─── Сортировка ───────────────────────────────────────────────────────────────

@@ -52,6 +52,7 @@ export default defineConfig({
 
       // Настройки Workbox (стратегии кеширования)
       workbox: {
+        importScripts: ['deadline-notifications.js'],
         // Кешируем все JS/CSS/HTML/иконки
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
 

@@ -248,11 +248,58 @@
  
   /* Цвет системной темы для date/time пикеров */
   input[type="date"],
-  input[type="time"] {
+  input[type="time"],
+  input[type="datetime-local"] {
     color-scheme: light;
   }
   .dark input[type="date"],
-  .dark input[type="time"] {
+  .dark input[type="time"],
+  .dark input[type="datetime-local"] {
     color-scheme: dark;
+  }
+}
+
+@keyframes deadline-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.35); }
+  50%      { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+}
+
+@layer utilities {
+  .deadline-pulse {
+    animation: deadline-pulse 1.4s ease-in-out infinite;
+  }
+
+  .datetime-local-input {
+    min-height: 2.5rem;
+  }
+
+  .calendar-month-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .calendar-month-body {
+    grid-auto-rows: minmax(4.75rem, auto);
+  }
+
+  @media (min-width: 768px) {
+    .calendar-month-body {
+      grid-auto-rows: minmax(6.5rem, auto);
+    }
+  }
+
+  .calendar-day-cell:nth-child(7n) {
+    border-right: none;
+  }
+
+  .calendar-month-body .calendar-day-cell:nth-last-child(-n+7) {
+    border-bottom: none;
+  }
+}
+
+/* Адаптив: от 320px до 1440px */
+@media (min-width: 320px) and (max-width: 1440px) {
+  .max-w-7xl {
+    max-width: min(80rem, 100%);
   }
 }

@@ -4,6 +4,8 @@ import { Menu, LogOut, User } from 'lucide-react';
 import { Sidebar }     from './components/layout/Sidebar';
 import { Header }      from './components/layout/Header';
 import { TaskList }    from './components/tasks/TaskList';
+import { DeadlineCalendar } from './components/deadlines/DeadlineCalendar';
+import { useNotifications } from './hooks/useNotifications';
 import { TaskModal }   from './components/tasks/TaskModal';
 import { KanbanBoard } from './components/kanban/KanbanBoard';
 import { StatsPanel }  from './components/stats/StatsPanel';
@@ -15,6 +17,7 @@ import { useAuth }     from './hooks/useAuth';
 import { useTasks }    from './hooks/useTasks';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { VIEWS } from './constants';
+import { buildDeadlineISOForDay } from './utils/deadlineHelpers';
 import { BottomNav } from './components/ui/BottomNav';
 
 export default function App() {
@@ -33,16 +36,41 @@ export default function App() {
   } = useTasks(user);
 
   const [activeView,   setActiveView]   = useLocalStorage('tm_view', VIEWS.LIST);
-  const [selectedTask, setSelectedTask] = useState(null);
-  const [sidebarOpen,  setSidebarOpen]  = useState(false);
-  const [deleteAlert,  setDeleteAlert]  = useState(null);
+  const [selectedTask, setSelectedTask]   = useState(null);
+  const [taskModalMode, setTaskModalMode] = useState('edit');
+  const [sidebarOpen,  setSidebarOpen]    = useState(false);
+  const [deleteAlert,  setDeleteAlert]    = useState(null);
+  const [modalDeleteAlert, setModalDeleteAlert] = useState(null);
 
   const activeTaskCount = tasks.filter(t => !t.completed).length;
 
+  useNotifications(tasks);
+
   const handleAddTask = useCallback(async () => {
     const newTask = await addTask({});
+    setTaskModalMode('create');
     setSelectedTask(newTask);
   }, [addTask]);
+
+  const handleOpenTask = useCallback((task) => {
+    setTaskModalMode('edit');
+    setSelectedTask(task);
+  }, []);
+
+  const handleAddTaskForDay = useCallback(async (date) => {
+    const newTask = await addTask({
+      deadline: buildDeadlineISOForDay(date, 9, 0),
+    });
+    setTaskModalMode('create');
+    setSelectedTask(newTask);
+  }, [addTask]);
+
+  const handleModalCancel = useCallback(async () => {
+    if (taskModalMode === 'create' && selectedTask?.id) {
+      await moveToTrash(selectedTask.id);
+    }
+    setSelectedTask(null);
+  }, [taskModalMode, selectedTask, moveToTrash]);
 
   const handleDeleteRequest = useCallback((id) => {
     const task = tasks.find(t => t.id === id);
@@ -205,7 +233,17 @@ export default function App() {
                   onAddTask={handleAddTask}
                   onToggle={toggleTask}
                   onDelete={handleDeleteRequest}
-                  onOpen={setSelectedTask}
+                  onOpen={handleOpenTask}
+                  onToggleSubtask={toggleSubtask}
+                />
+              )}
+              {activeView === VIEWS.CALENDAR && (
+                <DeadlineCalendar
+                  tasks={tasks}
+                  onOpen={handleOpenTask}
+                  onAddTaskForDay={handleAddTaskForDay}
+                  onToggle={toggleTask}
+                  onDelete={handleDeleteRequest}
                   onToggleSubtask={toggleSubtask}
                 />
               )}
@@ -215,7 +253,7 @@ export default function App() {
                   onAddTask={handleAddTask}
                   onToggle={toggleTask}
                   onDelete={handleDeleteRequest}
-                  onOpen={setSelectedTask}
+                  onOpen={handleOpenTask}
                   onChangeStatus={changeStatus}
                   onToggleSubtask={toggleSubtask}
                 />
@@ -225,7 +263,7 @@ export default function App() {
                   tasks={tasks}
                   onToggle={toggleTask}
                   onDelete={handleDeleteRequest}
-                  onOpen={setSelectedTask}
+                  onOpen={handleOpenTask}
                   onToggleSubtask={toggleSubtask}
                 />
               )}
@@ -248,7 +286,13 @@ export default function App() {
         {selectedTask && (
           <TaskModal
             task={tasks.find(t => t.id === selectedTask.id) || selectedTask}
+            mode={taskModalMode}
             onClose={() => setSelectedTask(null)}
+            onCancel={handleModalCancel}
+            onDelete={() => setModalDeleteAlert({
+              id: selectedTask.id,
+              title: selectedTask.title || 'Без названия',
+            })}
             onUpdate={updateTask}
             onAddSubtask={addSubtask}
             onToggleSubtask={toggleSubtask}
@@ -265,6 +309,21 @@ export default function App() {
         confirmLabel="В корзину"
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteAlert(null)}
+      />
+
+      <AlertModal
+        isOpen={!!modalDeleteAlert}
+        title="Удалить задачу?"
+        message={`Задача "${modalDeleteAlert?.title}" будет перемещена в корзину.`}
+        confirmLabel="Удалить"
+        onConfirm={async () => {
+          if (modalDeleteAlert) {
+            await moveToTrash(modalDeleteAlert.id);
+            setSelectedTask(null);
+          }
+          setModalDeleteAlert(null);
+        }}
+        onCancel={() => setModalDeleteAlert(null)}
       />
 
       <PwaPrompt />
