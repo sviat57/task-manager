@@ -15,6 +15,7 @@ import { useAuth }     from './hooks/useAuth';
 import { useTasks }    from './hooks/useTasks';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { VIEWS } from './constants';
+import { BottomNav } from './components/ui/BottomNav';
 
 export default function App() {
   const {
@@ -109,7 +110,7 @@ export default function App() {
           >
             <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
             <motion.div
-              // ✅ ИСПРАВЛЕНО: bg-theme-surface вместо bg-white dark:bg-slate-900
+              // ✅ ИСПРАВЛЕНО: bg-theme-surface вместо bg-theme-surface
               className="absolute left-0 top-0 bottom-0 w-64 bg-theme-surface
                 shadow-modal overflow-y-auto"
               initial={{ x: -256 }}
@@ -267,6 +268,11 @@ export default function App() {
       />
 
       <PwaPrompt />
+      <BottomNav
+        activeView={activeView}
+        onViewChange={setActiveView}
+        trashCount={trashed.length}
+      />
     </div>
   );
 }
@@ -344,7 +350,7 @@ function GuestBanner({ upgradeGuest, error }) {
         initial={{ y: -40 }}
         animate={{ y: 0 }}
         exit={{   y: -40 }}
-        className="bg-amber-500 text-white text-xs font-medium
+        className="bg-amber-500 text-primary-fg text-xs font-medium
           px-4 py-2 flex items-center justify-center gap-3"
       >
         <span>Вы в гостевом режиме — данные привязаны к этому устройству</span>

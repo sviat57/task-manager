@@ -63,8 +63,9 @@ export function TaskItem({
           {/* Чекбокс */}
           <button
             onClick={stop(() => onToggle(task.id))}
+            style={{ width: '20px', height: '20px', minWidth: '20px', minHeight: '20px' }}
             className={`
-              flex-shrink-0 mt-0.5 w-5 h-5 rounded-full border-2
+              flex-shrink-0 mt-0.5 rounded-full border-2
               transition-all duration-300 flex items-center justify-center cursor-pointer
               ${task.completed
                 ? 'bg-primary border-primary'
@@ -236,8 +237,9 @@ function InlineSubtask({ subtask, onToggle }) {
     <motion.div layout className="flex items-center gap-2">
       <button
         onClick={onToggle}
+        style={{ width: '14px', height: '14px', minWidth: '14px', minHeight: '14px' }}
         className={`
-          flex-shrink-0 w-3.5 h-3.5 rounded border-2
+          flex-shrink-0 rounded border-2
           transition-all duration-200 cursor-pointer
           flex items-center justify-center
           ${subtask.completed

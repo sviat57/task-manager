@@ -163,3 +163,96 @@
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 25%, transparent) !important;
   }
 }
+/* ── Добавь эти правила В КОНЕЦ своего index.css ──────────────────────────
+ 
+   Мобильная адаптация: safe areas, bottom nav padding,
+   touch-оптимизация, компактные карточки в grid на маленьких экранах
+*/
+ 
+@layer utilities {
+ 
+  /* Safe area для iPhone с чёлкой */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+ 
+  /* Отступ под Bottom Navigation Bar на мобиле */
+  .mb-bottom-nav {
+    margin-bottom: calc(4rem + env(safe-area-inset-bottom));
+  }
+ 
+  /* Убираем tap-highlight на мобиле */
+  .no-tap-highlight {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+ 
+@layer base {
+ 
+  /* Применяем no-tap-highlight глобально */
+  button, a, [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+  }
+ 
+  /* Минимальный размер touch-таргета — 44px (Apple HIG) */
+  button {
+    min-height: 36px;
+  }
+ 
+  /* Оптимизация скролла на мобиле */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+ 
+  /* Запрещаем выделение текста при свайпах */
+  .select-none {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+ 
+  /* Компактные карточки в grid на очень маленьких экранах (< 360px) */
+  @media (max-width: 360px) {
+    .grid.grid-cols-2 .rounded-card {
+      border-radius: 0.5rem;
+    }
+  }
+ 
+  /* Адаптивная типографика */
+  @media (max-width: 640px) {
+    .text-2xl { font-size: 1.25rem; }
+    .text-xl  { font-size: 1.1rem; }
+  }
+ 
+  /* Скрываем десктопный сайдбар на мобиле */
+  @media (max-width: 1023px) {
+    .desktop-sidebar { display: none; }
+  }
+ 
+  /* Основной контент не перекрывается bottom nav на мобиле */
+  @media (max-width: 767px) {
+    main {
+      padding-bottom: calc(5rem + env(safe-area-inset-bottom)) !important;
+    }
+  }
+ 
+  /* Модалки на мобиле — full-screen снизу */
+  @media (max-width: 640px) {
+    /* SlideOver занимает всю ширину на телефоне */
+    .slide-over-panel {
+      max-width: 100% !important;
+    }
+  }
+ 
+  /* Цвет системной темы для date/time пикеров */
+  input[type="date"],
+  input[type="time"] {
+    color-scheme: light;
+  }
+  .dark input[type="date"],
+  .dark input[type="time"] {
+    color-scheme: dark;
+  }
+}
