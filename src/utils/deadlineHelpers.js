@@ -60,6 +60,21 @@ export function getTodayFocusTask(tasks) {
   })[0];
 }
 
+/** Все задачи на сегодня + просроченные, отсортированы: просроченные первыми */
+export function getTodayTasks(tasks) {
+  const now = new Date();
+  return tasks
+    .filter(t => !t.completed && t.deadline && (
+      isToday(new Date(t.deadline)) || new Date(t.deadline) < now
+    ))
+    .sort((a, b) => {
+      const aOverdue = new Date(a.deadline) < now ? 0 : 1;
+      const bOverdue = new Date(b.deadline) < now ? 0 : 1;
+      if (aOverdue !== bOverdue) return aOverdue - bOverdue;
+      return new Date(a.deadline) - new Date(b.deadline);
+    });
+}
+
 /** Группировка для экрана «Календарь дедлайнов» */
 export function groupTasksByDeadlineDay(tasks) {
   const active = tasks.filter((t) => !t.completed && t.deadline);

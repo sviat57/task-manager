@@ -161,11 +161,14 @@ export function TaskItem({
             )}
           </div>
  
-          {/* Кнопки справа */}
+          {/* Кнопки справа — на тач-устройствах всегда видны */}
           <div
-            className={`flex items-center gap-1 flex-shrink-0 self-start
-              transition-opacity duration-150
-              ${hovered ? 'opacity-100' : 'opacity-0'}`}
+            className="flex items-center gap-1 flex-shrink-0 self-start
+              transition-opacity duration-150"
+            style={{
+              opacity: hovered ? 1 : undefined,
+            }}
+            data-actions
             onClick={stop()}
           >
             <button
