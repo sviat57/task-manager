@@ -13,11 +13,10 @@ const navItems = [
 // ✅ ИСПРАВЛЕНО: убраны неиспользуемые пропсы theme и onToggleTheme
 export function Sidebar({ activeView, onViewChange, taskCount, trashCount }) {
   return (
-    // ✅ ИСПРАВЛЕНО: убран h-screen (вызывал overflow-проблемы)
-    // sticky top-0 + min-h-screen даёт правильное поведение
+    // Sidebar fills the full height of its flex parent
     <aside className="flex flex-col w-56 flex-shrink-0
       bg-theme-surface border-r border-theme
-      sticky top-0 min-h-screen px-2 py-6">
+      h-full overflow-y-auto px-2 py-6">
 
       {/* Лого */}
       <div className="flex items-center gap-2.5 px-3 py-2 mb-6">

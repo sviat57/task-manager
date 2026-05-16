@@ -116,8 +116,7 @@ export default function App() {
 
   // ── Основной интерфейс ────────────────────────────────────────────────────
   return (
-    // ✅ ИСПРАВЛЕНО: один корневой div, правильная структура
-    <div className="min-h-screen bg-theme-base transition-colors duration-300">
+    <div className="h-full bg-theme-base transition-colors duration-300 flex flex-col overflow-hidden">
 
       {/* Баннер гостевого режима */}
       <AnimatePresence>
@@ -161,10 +160,10 @@ export default function App() {
       </AnimatePresence>
 
       {/* ── Основной layout ──────────────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto flex min-h-screen">
+      <div className="flex flex-1 min-h-0">
 
         {/* Десктоп-сайдбар */}
-        <div className="hidden lg:block flex-shrink-0">
+        <div className="hidden lg:flex flex-shrink-0">
           <Sidebar
             activeView={activeView}
             onViewChange={setActiveView}
@@ -174,7 +173,7 @@ export default function App() {
         </div>
 
         {/* Контент */}
-        <main className="flex-1 px-4 lg:px-8 py-8 min-w-0">
+        <main className="flex-1 px-4 lg:px-8 py-6 min-w-0 flex flex-col overflow-y-auto">
 
           {/* Мобильная шапка */}
           <div className="flex items-center justify-between mb-4 lg:hidden">
@@ -226,6 +225,7 @@ export default function App() {
               animate={{ opacity: 1, y: 0  }}
               exit={{   opacity: 0, y: -8 }}
               transition={{ duration: 0.2 }}
+              className={(activeView === VIEWS.CALENDAR || activeView === VIEWS.KANBAN) ? 'flex flex-col flex-1 min-h-0' : undefined}
             >
               {activeView === VIEWS.LIST && (
                 <TaskList

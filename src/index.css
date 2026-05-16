@@ -18,6 +18,7 @@
 
   html {
     font-family: var(--font-main);
+    height: 100%;
   }
 
   body {
@@ -25,6 +26,12 @@
     color: var(--color-text);
     font-family: var(--font-main);
     transition: background-color 0.25s ease, color 0.2s ease;
+    height: 100%;
+    margin: 0;
+  }
+
+  #root {
+    height: 100%;
   }
 
   /* ── ГЛОБАЛЬНЫЙ ПЕРЕХВАТ: все "белые" элементы → тема ─────────────────
@@ -279,12 +286,13 @@
   }
 
   .calendar-month-body {
-    grid-auto-rows: minmax(4.75rem, auto);
+    grid-auto-rows: 1fr;
+    min-height: 0;
   }
 
   @media (min-width: 768px) {
     .calendar-month-body {
-      grid-auto-rows: minmax(6.5rem, auto);
+      grid-auto-rows: 1fr;
     }
   }
 
@@ -297,9 +305,3 @@
   }
 }
 
-/* Адаптив: от 320px до 1440px */
-@media (min-width: 320px) and (max-width: 1440px) {
-  .max-w-7xl {
-    max-width: min(80rem, 100%);
-  }
-}

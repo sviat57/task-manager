@@ -46,7 +46,7 @@ export function DeadlineCalendar({
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="w-full max-w-6xl mx-auto space-y-4"
+      className="w-full flex flex-col flex-1 min-h-0 space-y-4"
     >
       <FocusStrip task={focus} onOpen={onOpen} />
 
@@ -81,7 +81,7 @@ export function DeadlineCalendar({
         </button>
       </div>
 
-      <div className="rounded-card border border-theme bg-theme-surface shadow-card overflow-hidden">
+      <div className="rounded-card border border-theme bg-theme-surface shadow-card overflow-hidden flex flex-col flex-1 min-h-0">
         <div className="calendar-month-grid border-b border-theme bg-theme-elevated">
           {WEEKDAYS.map((label) => (
             <div
@@ -93,14 +93,13 @@ export function DeadlineCalendar({
           ))}
         </div>
 
-        <div className="calendar-month-grid calendar-month-body">
+        <div className="calendar-month-grid calendar-month-body flex-1">
           {monthDays.map((day) => (
             <DayCell
               key={dayKey(day.date)}
               day={day}
               tasks={tasksByDay.get(dayKey(day.date)) || []}
               onOpenDay={setSelectedDay}
-              onOpenTask={onOpen}
             />
           ))}
         </div>
@@ -181,7 +180,7 @@ function FocusStrip({ task, onOpen }) {
   );
 }
 
-function DayCell({ day, tasks: dayTasks, onOpenDay, onOpenTask }) {
+function DayCell({ day, tasks: dayTasks, onOpenDay }) {
   const { date, inMonth, isToday: today } = day;
   const extra = Math.max(0, dayTasks.length - MAX_TASKS_DESKTOP);
   const visible = dayTasks.slice(0, MAX_TASKS_DESKTOP);
@@ -223,18 +222,11 @@ function DayCell({ day, tasks: dayTasks, onOpenDay, onOpenTask }) {
 
       <div className="flex flex-wrap gap-0.5 md:hidden min-h-[14px]">
         {dayTasks.slice(0, 5).map((task) => (
-          <button
+          <span
             key={task.id}
-            type="button"
-            data-task
             title={task.title || 'Без названия'}
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenTask(task);
-            }}
-            className={`w-2 h-2 rounded-full flex-shrink-0 cursor-pointer
-              ${PRIORITIES[task.priority]?.dot || 'bg-theme-muted'}
-              hover:scale-125 transition-transform`}
+            className={`w-2 h-2 rounded-full flex-shrink-0
+              ${PRIORITIES[task.priority]?.dot || 'bg-theme-muted'}`}
           />
         ))}
         {dayTasks.length > 5 && (
@@ -246,12 +238,11 @@ function DayCell({ day, tasks: dayTasks, onOpenDay, onOpenTask }) {
 
       <div className="hidden md:flex flex-col gap-0.5 flex-1 min-h-0 overflow-hidden">
         {visible.map((task) => (
-          <CalendarMiniTask key={task.id} task={task} onOpen={onOpenTask} />
+          <CalendarMiniTask key={task.id} task={task} />
         ))}
         {extra > 0 && (
           <span
             className="text-[10px] text-theme-muted px-1 font-medium"
-            onClick={(e) => e.stopPropagation()}
           >
             +{extra} ещё
           </span>
@@ -261,23 +252,17 @@ function DayCell({ day, tasks: dayTasks, onOpenDay, onOpenTask }) {
   );
 }
 
-function CalendarMiniTask({ task, onOpen }) {
+function CalendarMiniTask({ task }) {
   const priority = PRIORITIES[task.priority];
   const overdue = getDeadlineUrgency(task.deadline, task.completed) === 'overdue';
 
   return (
-    <button
-      type="button"
-      data-task
-      onClick={(e) => {
-        e.stopPropagation();
-        onOpen(task);
-      }}
+    <div
       className={`
         relative w-full flex items-center min-h-[22px] max-h-[22px]
         pl-1.5 pr-1 rounded-md border border-theme/80
-        bg-theme-elevated hover:bg-theme-base
-        text-left cursor-pointer transition-colors overflow-hidden
+        bg-theme-elevated
+        text-left overflow-hidden pointer-events-none
         ${overdue ? 'opacity-75' : ''}
       `}
     >
@@ -290,6 +275,6 @@ function CalendarMiniTask({ task, onOpen }) {
       >
         {task.title || 'Без названия'}
       </span>
-    </button>
+    </div>
   );
 }

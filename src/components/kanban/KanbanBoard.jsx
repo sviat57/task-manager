@@ -50,7 +50,7 @@ export function KanbanBoard({
   const handleDrop = (taskId, newStatus) => onChangeStatus(taskId, newStatus);
  
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4">
+    <div className="flex flex-1 min-h-0 gap-4 overflow-x-auto pb-4">
       {KANBAN_COLUMNS.map((col, idx) => (
         <DesktopColumn
           key={col.id}

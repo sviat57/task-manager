@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { TaskItem } from '../tasks/TaskItem';
 import { KANBAN_COLUMNS } from '../../constants';
@@ -25,6 +25,18 @@ export function MobileKanban({
   const autoScrollTimer = useRef(null);
   const containerRef    = useRef(null);
 
+  // Long-press state
+  const longPressTimer = useRef(null);
+  const longPressTriggered = useRef(false);
+  const touchStartPos = useRef({ x: 0, y: 0 });
+
+  // Ref для текущего colIndex (для доступа из коллбэков без зависимостей)
+  const colIndexRef = useRef(colIndex);
+  useEffect(() => { colIndexRef.current = colIndex; }, [colIndex]);
+
+  // Направление анимации свайпа
+  const [swipeDir, setSwipeDir] = useState(1);
+
   // Группируем задачи
   const grouped = KANBAN_COLUMNS.reduce((acc, col) => {
     acc[col.id] = tasks.filter(t => {
@@ -36,58 +48,88 @@ export function MobileKanban({
   }, {});
 
   // ── Циклическая навигация ─────────────────────────────────────────────────
-  const goTo = useCallback((idx) => {
-    // Модульная арифметика для цикличности
-    setColIndex(((idx % totalCols) + totalCols) % totalCols);
+  const goTo = useCallback((idx, dir) => {
+    const newIdx = ((idx % totalCols) + totalCols) % totalCols;
+    if (dir !== undefined) setSwipeDir(dir);
+    else setSwipeDir(idx > colIndexRef.current ? 1 : -1);
+    setColIndex(newIdx);
   }, [totalCols]);
 
-  const goNext = () => goTo(colIndex + 1);
-  const goPrev = () => goTo(colIndex - 1);
+  const goNext = useCallback(() => goTo(colIndexRef.current + 1, 1), [goTo]);
+  const goPrev = useCallback(() => goTo(colIndexRef.current - 1, -1), [goTo]);
 
   // ── Свайп жест ────────────────────────────────────────────────────────────
-  const touchStartX = useRef(null);
-  const touchStartY = useRef(null);
+  const swipeStartX = useRef(null);
+  const swipeStartY = useRef(null);
   const isSwiping   = useRef(false);
 
-  const handleTouchStart = (e) => {
-    // Не перехватываем если идёт drag задачи
+  const handleSwipeStart = (e) => {
     if (draggingTask) return;
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
+    swipeStartX.current = e.touches[0].clientX;
+    swipeStartY.current = e.touches[0].clientY;
     isSwiping.current   = false;
   };
 
-  const handleTouchMove = (e) => {
-    if (draggingTask || touchStartX.current === null) return;
-    const dx = e.touches[0].clientX - touchStartX.current;
-    const dy = e.touches[0].clientY - touchStartY.current;
-    // Определяем что это горизонтальный свайп
+  const handleSwipeMove = (e) => {
+    if (draggingTask || swipeStartX.current === null) return;
+    const dx = e.touches[0].clientX - swipeStartX.current;
+    const dy = e.touches[0].clientY - swipeStartY.current;
     if (!isSwiping.current && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
       isSwiping.current = true;
     }
-    if (isSwiping.current) e.preventDefault();
   };
 
-  const handleTouchEnd = (e) => {
-    if (draggingTask || !isSwiping.current) return;
-    const dx = e.changedTouches[0].clientX - touchStartX.current;
-    const THRESHOLD = 50; // минимальный свайп в пикселях
+  const handleSwipeEnd = (e) => {
+    if (draggingTask || !isSwiping.current || swipeStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - swipeStartX.current;
+    const THRESHOLD = 50;
     if (dx < -THRESHOLD) goNext();
     else if (dx > THRESHOLD) goPrev();
-    touchStartX.current = null;
+    swipeStartX.current = null;
+    swipeStartY.current = null;
     isSwiping.current   = false;
   };
 
-  // ── Touch Drag-and-Drop задач ─────────────────────────────────────────────
+  // ── Touch Long-Press Drag-and-Drop задач ──────────────────────────────────
   const handleTaskTouchStart = (e, taskId) => {
-    e.stopPropagation(); // не тригерим свайп колонки
+    // Запоминаем позицию для определения что палец не двигался
     const touch = e.touches[0];
-    setDraggingTask({ taskId, startCol: colIndex });
-    setDragPos({ x: touch.clientX, y: touch.clientY });
-    setDragOverCol(colIndex);
+    touchStartPos.current = { x: touch.clientX, y: touch.clientY };
+    longPressTriggered.current = false;
+
+    // Запускаем таймер long-press: 1 секунда
+    longPressTimer.current = setTimeout(() => {
+      longPressTriggered.current = true;
+      // Вибрация для тактильной обратной связи
+      if (navigator.vibrate) navigator.vibrate(50);
+      setDraggingTask({ taskId, startCol: colIndexRef.current });
+      setDragPos({ x: touch.clientX, y: touch.clientY });
+      setDragOverCol(colIndexRef.current);
+    }, 1000);
   };
 
-  const handleTaskTouchMove = useCallback((e) => {
+  const handleTaskTouchMoveForLongPress = (e) => {
+    // Если палец сдвинулся более чем на 10px — отменяем long-press
+    if (longPressTimer.current && !longPressTriggered.current) {
+      const touch = e.touches[0];
+      const dx = Math.abs(touch.clientX - touchStartPos.current.x);
+      const dy = Math.abs(touch.clientY - touchStartPos.current.y);
+      if (dx > 10 || dy > 10) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+      }
+    }
+  };
+
+  const handleTaskTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  // ── Глобальные обработчики drag задачи ────────────────────────────────────
+  const handleDragTouchMove = useCallback((e) => {
     if (!draggingTask) return;
     e.preventDefault();
     const touch = e.touches[0];
@@ -96,47 +138,45 @@ export function MobileKanban({
     const container = containerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
-    const relX  = touch.clientX - rect.left;
-    const width  = rect.width;
-
-    // Зона авто-скролла — 15% от края
-    const EDGE = width * 0.15;
+    const relX = touch.clientX - rect.left;
+    const width = rect.width;
+    const EDGE = width * 0.18;
 
     if (relX < EDGE) {
-      // Левый край — переход к предыдущей колонке
       if (!autoScrollTimer.current) {
         autoScrollTimer.current = setTimeout(() => {
-          goTo(colIndex - 1);
-          setDragOverCol(prev => ((prev - 1 + totalCols) % totalCols));
+          const prevCol = ((colIndexRef.current - 1) + totalCols) % totalCols;
+          setSwipeDir(-1);
+          setColIndex(prevCol);
+          setDragOverCol(prevCol);
           autoScrollTimer.current = null;
-        }, 1800); // 1.8 сек задержка
+        }, 600);
       }
     } else if (relX > width - EDGE) {
-      // Правый край — следующая колонка
       if (!autoScrollTimer.current) {
         autoScrollTimer.current = setTimeout(() => {
-          goTo(colIndex + 1);
-          setDragOverCol(prev => (prev + 1) % totalCols);
+          const nextCol = (colIndexRef.current + 1) % totalCols;
+          setSwipeDir(1);
+          setColIndex(nextCol);
+          setDragOverCol(nextCol);
           autoScrollTimer.current = null;
-        }, 1800);
+        }, 600);
       }
     } else {
-      // Сбрасываем таймер если ушли от края
       if (autoScrollTimer.current) {
         clearTimeout(autoScrollTimer.current);
         autoScrollTimer.current = null;
       }
     }
-  }, [draggingTask, colIndex, totalCols, goTo]);
+  }, [draggingTask, totalCols]);
 
-  const handleTaskTouchEnd = useCallback(() => {
+  const handleDragTouchEnd = useCallback(() => {
     if (!draggingTask) return;
     if (autoScrollTimer.current) {
       clearTimeout(autoScrollTimer.current);
       autoScrollTimer.current = null;
     }
 
-    // Если перетащили в другую колонку — меняем статус
     const targetColId = KANBAN_COLUMNS[dragOverCol]?.id;
     if (targetColId && targetColId !== KANBAN_COLUMNS[draggingTask.startCol]?.id) {
       onChangeStatus(draggingTask.taskId, targetColId);
@@ -149,17 +189,18 @@ export function MobileKanban({
   // Вешаем глобальные touch-обработчики пока идёт drag
   useEffect(() => {
     if (!draggingTask) return;
-    window.addEventListener('touchmove',  handleTaskTouchMove,  { passive: false });
-    window.addEventListener('touchend',   handleTaskTouchEnd);
-    window.addEventListener('touchcancel',handleTaskTouchEnd);
+    const opts = { passive: false };
+    window.addEventListener('touchmove',   handleDragTouchMove,  opts);
+    window.addEventListener('touchend',    handleDragTouchEnd);
+    window.addEventListener('touchcancel', handleDragTouchEnd);
     return () => {
-      window.removeEventListener('touchmove',  handleTaskTouchMove);
-      window.removeEventListener('touchend',   handleTaskTouchEnd);
-      window.removeEventListener('touchcancel',handleTaskTouchEnd);
+      window.removeEventListener('touchmove',   handleDragTouchMove);
+      window.removeEventListener('touchend',    handleDragTouchEnd);
+      window.removeEventListener('touchcancel', handleDragTouchEnd);
     };
-  }, [draggingTask, handleTaskTouchMove, handleTaskTouchEnd]);
+  }, [draggingTask, handleDragTouchMove, handleDragTouchEnd]);
 
-  const currentCol  = KANBAN_COLUMNS[colIndex];
+  const currentCol   = KANBAN_COLUMNS[colIndex];
   const currentTasks = grouped[currentCol.id] || [];
 
   const accentColor = {
@@ -167,6 +208,13 @@ export function MobileKanban({
     inprogress: '#3b82f6',
     done:       '#10b981',
   }[currentCol.id];
+
+  // Анимация: направление свайпа
+  const variants = {
+    enter: (dir) => ({ opacity: 0, x: dir > 0 ? 60 : -60 }),
+    center: { opacity: 1, x: 0 },
+    exit: (dir) => ({ opacity: 0, x: dir > 0 ? -60 : 60 }),
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -224,18 +272,20 @@ export function MobileKanban({
       {/* ── Область свайпа и задач ────────────────────────────────────── */}
       <div
         ref={containerRef}
-        className="flex-1 relative"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
+        className="flex-1 relative overflow-hidden"
+        onTouchStart={handleSwipeStart}
+        onTouchMove={handleSwipeMove}
+        onTouchEnd={handleSwipeEnd}
         style={{ touchAction: draggingTask ? 'none' : 'pan-y' }}
       >
-        <AnimatePresence mode="wait" initial={false}>
+        <AnimatePresence mode="wait" initial={false} custom={swipeDir}>
           <motion.div
             key={currentCol.id}
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{   opacity: 0, x: -40 }}
+            custom={swipeDir}
+            variants={variants}
+            initial="enter"
+            animate="center"
+            exit="exit"
             transition={{ duration: 0.2, ease: 'easeInOut' }}
             className="space-y-2"
           >
@@ -257,6 +307,8 @@ export function MobileKanban({
                 <div
                   key={task.id}
                   onTouchStart={(e) => handleTaskTouchStart(e, task.id)}
+                  onTouchMove={handleTaskTouchMoveForLongPress}
+                  onTouchEnd={handleTaskTouchEnd}
                   className={`transition-transform duration-150
                     ${draggingTask?.taskId === task.id ? 'opacity-40 scale-95' : ''}`}
                 >
@@ -303,16 +355,6 @@ export function MobileKanban({
           >
             ✋ Перетаскиваю
           </motion.div>
-        )}
-
-        {/* Overlay-подсказка при drag к краю */}
-        {draggingTask && autoScrollTimer.current && (
-          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-            <div className="bg-primary text-primary-fg text-xs font-bold px-4 py-2
-              rounded-full shadow-modal animate-pulse">
-              Переход через 2с...
-            </div>
-          </div>
         )}
       </div>
 
