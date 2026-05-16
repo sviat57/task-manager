@@ -69,8 +69,8 @@ export function PwaPrompt() {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
           transition={{ type: 'spring', bounce: 0.3, duration: 0.5 }}
-          className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-sm pb-safe"
-          style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
+          className="fixed left-4 right-4 z-50 mx-auto max-w-sm"
+          style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
         >
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl
             border border-slate-200 dark:border-slate-700 p-4">

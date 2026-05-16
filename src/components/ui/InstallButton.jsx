@@ -49,7 +49,12 @@ export function InstallButton() {
       {/* ── Модалка с инструкцией для iOS ─────────────────────────────────── */}
       <AnimatePresence>
         {iosModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center"
+            style={{
+              padding: 'calc(1rem + env(safe-area-inset-top, 0px)) calc(1rem + env(safe-area-inset-right, 0px)) calc(1rem + env(safe-area-inset-bottom, 0px)) calc(1rem + env(safe-area-inset-left, 0px))',
+            }}
+          >
             <motion.div
               className="absolute inset-0 bg-black/40 backdrop-blur-sm"
               onClick={() => setIosModal(false)}

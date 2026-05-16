@@ -204,7 +204,10 @@ function StatTasksModal({
 }) {
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      style={{
+        padding: 'calc(1rem + env(safe-area-inset-top, 0px)) calc(1rem + env(safe-area-inset-right, 0px)) calc(1rem + env(safe-area-inset-bottom, 0px)) calc(1rem + env(safe-area-inset-left, 0px))',
+      }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{   opacity: 0 }}

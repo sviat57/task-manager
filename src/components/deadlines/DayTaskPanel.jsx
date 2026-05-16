@@ -84,7 +84,10 @@ export function DayTaskPanel({
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        <header className="flex-shrink-0 px-4 sm:px-5 pt-5 pb-3 border-b border-theme">
+        <header
+          className="flex-shrink-0 px-4 sm:px-5 pb-3 border-b border-theme"
+          style={{ paddingTop: 'calc(1.25rem + env(safe-area-inset-top, 0px))' }}
+        >
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h2 className="text-lg font-bold text-theme-main leading-snug capitalize">{title}</h2>

@@ -116,7 +116,7 @@ export default function App() {
 
   // ── Основной интерфейс ────────────────────────────────────────────────────
   return (
-    <div className="h-full bg-theme-base transition-colors duration-300 flex flex-col overflow-hidden">
+    <div className="h-full bg-theme-base transition-colors duration-300 flex flex-col overflow-clip safe-top">
 
       {/* Баннер гостевого режима */}
       <AnimatePresence>
@@ -146,7 +146,7 @@ export default function App() {
               transition={{ type: 'spring', bounce: 0.1 }}
               onClick={e => e.stopPropagation()}
             >
-              <div className="p-4">
+              <div className="p-4 pt-safe pb-safe">
                 <Sidebar
                   activeView={activeView}
                   onViewChange={(v) => { setActiveView(v); setSidebarOpen(false); }}
@@ -425,7 +425,10 @@ function GuestBanner({ upgradeGuest, error }) {
       <AnimatePresence>
         {upgradeOpen && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center"
+            style={{
+              padding: 'calc(1rem + env(safe-area-inset-top, 0px)) calc(1rem + env(safe-area-inset-right, 0px)) calc(1rem + env(safe-area-inset-bottom, 0px)) calc(1rem + env(safe-area-inset-left, 0px))',
+            }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{   opacity: 0 }}

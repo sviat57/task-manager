@@ -20,7 +20,7 @@ export function BottomNav({ activeView, onViewChange, trashCount }) {
     <nav className="fixed bottom-0 left-0 right-0 z-30 md:hidden
       bg-theme-surface border-t border-theme
       flex items-stretch"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
       {items.map(item => {
         const active = activeView === item.id;

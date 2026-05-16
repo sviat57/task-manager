@@ -319,8 +319,10 @@ function TaskSlideOver({
         transition={{ type: 'spring', damping: 28, stiffness: 300 }}
       >
         {/* Шапка */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-4
-          border-b border-theme flex-shrink-0">
+        <div className="flex items-center justify-between px-6 pb-4
+          border-b border-theme flex-shrink-0"
+          style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top, 0px))' }}
+        >
           <div className="flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${priority?.dot}`} />
             <span className={`text-xs font-semibold ${priority?.color}`}>
@@ -444,7 +446,7 @@ function TaskSlideOver({
         </div>
  
         {/* Кнопки снизу */}
-        <div className="flex-shrink-0 flex gap-3 px-6 py-5 border-t border-theme">
+        <div className="flex-shrink-0 flex gap-3 px-6 py-5 border-t border-theme safe-bottom">
           <button
             onClick={onEdit}
             className="flex-1 flex items-center justify-center gap-2 py-3
