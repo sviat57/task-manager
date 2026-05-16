@@ -1,11 +1,11 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DayTaskPanel } from './DayTaskPanel';
-import { ChevronLeft, ChevronRight, Flame, Clock, Plus, AlertTriangle } from 'lucide-react';
-import { addMonths, subMonths, format, formatDistanceToNow } from 'date-fns';
+import { ChevronLeft, ChevronRight, Flame, Clock } from 'lucide-react';
+import { addMonths, subMonths, format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import {
-  getTodayTasks,
+  getTodayFocusTask,
   getMonthGrid,
   groupTasksByCalendarDay,
   dayKey,
@@ -33,9 +33,8 @@ export function DeadlineCalendar({
 }) {
   const [viewDate, setViewDate] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState(null);
-  const [slideDir, setSlideDir] = useState(0); // -1 = left, 1 = right
 
-  const todayTasks = useMemo(() => getTodayTasks(tasks), [tasks]);
+  const focus = useMemo(() => getTodayFocusTask(tasks), [tasks]);
   const monthDays = useMemo(() => getMonthGrid(viewDate), [viewDate]);
   const tasksByDay = useMemo(() => groupTasksByCalendarDay(tasks), [tasks]);
 
@@ -43,51 +42,25 @@ export function DeadlineCalendar({
     format(viewDate, 'LLLL yyyy', { locale: ru })
   );
 
-  const goNext = () => { setSlideDir(1);  setViewDate(d => addMonths(d, 1)); };
-  const goPrev = () => { setSlideDir(-1); setViewDate(d => subMonths(d, 1)); };
-
-  // ── Свайп месяцев ──────────────────────────────────────────────────────
-  const touchRef = useRef({ x: 0, y: 0, swiping: false });
-
-  const handleTouchStart = (e) => {
-    touchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, swiping: false };
-  };
-  const handleTouchMove = (e) => {
-    const dx = Math.abs(e.touches[0].clientX - touchRef.current.x);
-    const dy = Math.abs(e.touches[0].clientY - touchRef.current.y);
-    if (!touchRef.current.swiping && dx > dy && dx > 12) {
-      touchRef.current.swiping = true;
-    }
-  };
-  const handleTouchEnd = (e) => {
-    if (!touchRef.current.swiping) return;
-    const dx = e.changedTouches[0].clientX - touchRef.current.x;
-    if (dx < -60) goNext();
-    else if (dx > 60) goPrev();
-    touchRef.current.swiping = false;
-  };
-
-  const monthKey = format(viewDate, 'yyyy-MM');
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       className="w-full flex flex-col flex-1 min-h-0 space-y-4"
     >
-      <TodayStrip tasks={todayTasks} onOpen={onOpen} onAddTask={() => onAddTaskForDay(new Date())} />
+      <FocusStrip task={focus} onOpen={onOpen} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1">
           <NavButton
             aria-label="Предыдущий месяц"
-            onClick={goPrev}
+            onClick={() => setViewDate((d) => subMonths(d, 1))}
           >
             <ChevronLeft size={18} />
           </NavButton>
           <NavButton
             aria-label="Следующий месяц"
-            onClick={goNext}
+            onClick={() => setViewDate((d) => addMonths(d, 1))}
           >
             <ChevronRight size={18} />
           </NavButton>
@@ -99,7 +72,7 @@ export function DeadlineCalendar({
 
         <button
           type="button"
-          onClick={() => { setSlideDir(0); setViewDate(new Date()); }}
+          onClick={() => setViewDate(new Date())}
           className="px-3 py-1.5 text-xs font-semibold rounded-xl
             bg-theme-elevated border border-theme text-theme-main
             hover:bg-theme-surface transition-colors cursor-pointer shadow-card"
@@ -108,12 +81,7 @@ export function DeadlineCalendar({
         </button>
       </div>
 
-      <div
-        className="rounded-card border border-theme bg-theme-surface shadow-card overflow-hidden flex flex-col flex-1 min-h-0"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
+      <div className="rounded-card border border-theme bg-theme-surface shadow-card overflow-hidden flex flex-col flex-1 min-h-0">
         <div className="calendar-month-grid border-b border-theme bg-theme-elevated">
           {WEEKDAYS.map((label) => (
             <div
@@ -125,25 +93,16 @@ export function DeadlineCalendar({
           ))}
         </div>
 
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={monthKey}
-            initial={{ opacity: 0, x: slideDir * 60 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: slideDir * -60 }}
-            transition={{ duration: 0.2, ease: 'easeInOut' }}
-            className="calendar-month-grid calendar-month-body flex-1"
-          >
-            {monthDays.map((day) => (
-              <DayCell
-                key={dayKey(day.date)}
-                day={day}
-                tasks={tasksByDay.get(dayKey(day.date)) || []}
-                onOpenDay={setSelectedDay}
-              />
-            ))}
-          </motion.div>
-        </AnimatePresence>
+        <div className="calendar-month-grid calendar-month-body flex-1">
+          {monthDays.map((day) => (
+            <DayCell
+              key={dayKey(day.date)}
+              day={day}
+              tasks={tasksByDay.get(dayKey(day.date)) || []}
+              onOpenDay={setSelectedDay}
+            />
+          ))}
+        </div>
       </div>
 
       <AnimatePresence>

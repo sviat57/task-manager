@@ -223,22 +223,6 @@
   button {
     min-height: 36px;
   }
-
-  /* Кнопки действий — скрыты на десктопе, видны на тач-устройствах */
-  @media (hover: hover) and (pointer: fine) {
-    [data-actions] {
-      opacity: 0;
-    }
-    .group:hover [data-actions],
-    [data-actions]:focus-within {
-      opacity: 1;
-    }
-  }
-  @media (hover: none) {
-    [data-actions] {
-      opacity: 0.7;
-    }
-  }
  
   /* Оптимизация скролла на мобиле */
   * {
