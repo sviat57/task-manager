@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { LayoutList, Kanban, BarChart2, CheckSquare, Trash2, CalendarDays } from 'lucide-react';
 import { VIEWS } from '../../constants';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
+import { InstallButton } from '../ui/InstallButton';
 
 const navItems = [
   { id: VIEWS.LIST,     icon: LayoutList,   label: 'Все задачи' },
@@ -104,9 +105,10 @@ export function Sidebar({ activeView, onViewChange, taskCount, trashCount }) {
         </button>
       </nav>
 
-      {/* Переключатель темы — прибит к низу */}
-      <div className="border-t border-theme pt-3 mt-3">
+      {/* Переключатель темы + кнопка установки — прибиты к низу */}
+      <div className="border-t border-theme pt-3 mt-3 space-y-0.5">
         <ThemeSwitcher />
+        <InstallButton />
       </div>
     </aside>
   );
