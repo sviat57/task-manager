@@ -21,7 +21,6 @@ export function TaskItem({
   onToggleSubtask,
   isGrid = false,
 }) {
-  const [hovered,   setHovered]   = useState(false);
   const [expanded,  setExpanded]  = useState(false);
   const [slideOver, setSlideOver] = useState(false);
  
@@ -60,8 +59,6 @@ export function TaskItem({
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0  }}
         exit={{   opacity: 0, x: -20, transition: { duration: 0.2 } }}
-        onHoverStart={() => setHovered(true)}
-        onHoverEnd={()   => setHovered(false)}
         onClick={handleCardClick}
         className={`
           group relative cursor-pointer select-none
@@ -162,10 +159,9 @@ export function TaskItem({
           </div>
  
           {/* Кнопки справа */}
-          <div
-            className={`flex items-center gap-1 flex-shrink-0 self-start
-              transition-opacity duration-150
-              ${hovered ? 'opacity-100' : 'opacity-0'}`}
+          <motion.div
+            className="task-item-actions flex items-center gap-1 flex-shrink-0 self-start
+              opacity-100 transition-opacity duration-150"
             onClick={stop()}
           >
             <button
@@ -191,7 +187,7 @@ export function TaskItem({
                 </motion.div>
               </button>
             )}
-          </div>
+          </motion.div>
         </div>
  
         {/* Инлайн-подзадачи List */}

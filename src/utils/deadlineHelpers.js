@@ -46,18 +46,41 @@ export function compareByDeadline(a, b) {
   return new Date(a.deadline) - new Date(b.deadline);
 }
 
-/** Фокус дня: ближайший дедлайн сегодня + максимальный приоритет */
-export function getTodayFocusTask(tasks) {
-  const todayTasks = tasks.filter(
-    (t) => !t.completed && t.deadline && isToday(new Date(t.deadline))
-  );
-  if (!todayTasks.length) return null;
+/** Все задачи с дедлайном на сегодня */
+export function getTodayTasks(tasks, { includeCompleted = true } = {}) {
+  return tasks
+    .filter((t) => {
+      if (!t.deadline || !isToday(new Date(t.deadline))) return false;
+      if (!includeCompleted && t.completed) return false;
+      return true;
+    })
+    .sort(compareByDeadline);
+}
 
-  return [...todayTasks].sort((a, b) => {
-    const byDeadline = new Date(a.deadline) - new Date(b.deadline);
-    if (byDeadline !== 0) return byDeadline;
-    return (PRIORITIES[b.priority]?.order || 0) - (PRIORITIES[a.priority]?.order || 0);
-  })[0];
+/** id задачи дня с наивысшей срочностью (просрочена или ближайший дедлайн) */
+export function getHighlightTodayTaskId(tasks) {
+  const active = getTodayTasks(tasks, { includeCompleted: false });
+  if (!active.length) return null;
+  return active[0].id;
+}
+
+/** Текст таймера: «Просрочено» / «Через 2 ч» */
+export function formatDeadlineCountdown(deadline) {
+  const mins = minutesUntilDeadline(deadline);
+  if (mins === null) return '';
+  if (mins < 0) return 'Просрочено';
+  if (mins < 60) return `Через ${mins} мин`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `Через ${hours} ч`;
+  const days = Math.floor(hours / 24);
+  return `Через ${days} д`;
+}
+
+/** @deprecated используйте getHighlightTodayTaskId */
+export function getTodayFocusTask(tasks) {
+  const id = getHighlightTodayTaskId(tasks);
+  if (!id) return null;
+  return getTodayTasks(tasks, { includeCompleted: false }).find((t) => t.id === id) ?? null;
 }
 
 /** Группировка для экрана «Календарь дедлайнов» */

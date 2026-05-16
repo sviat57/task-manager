@@ -244,6 +244,7 @@ export default function App() {
                 <DeadlineCalendar
                   tasks={tasks}
                   onOpen={handleOpenTask}
+                  onAddTask={handleAddTask}
                   onAddTaskForDay={handleAddTaskForDay}
                   onToggle={toggleTask}
                   onDelete={handleDeleteRequest}

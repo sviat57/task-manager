@@ -1,18 +1,18 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DayTaskPanel } from './DayTaskPanel';
-import { ChevronLeft, ChevronRight, Flame, Clock } from 'lucide-react';
+import { TodayTasksSection } from '../tasks/TodayTasksSection';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { addMonths, subMonths, format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import {
-  getTodayFocusTask,
   getMonthGrid,
   groupTasksByCalendarDay,
   dayKey,
   getDeadlineUrgency,
 } from '../../utils/deadlineHelpers';
-import { formatDeadline } from '../../utils/helpers';
 import { PRIORITIES } from '../../constants';
+import { useSwipe } from '../../hooks/useSwipe';
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const MAX_TASKS_DESKTOP = 3;
@@ -22,46 +22,72 @@ function capitalizeMonth(label) {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-/** Календарь дедлайнов — month view (сетка 7×N). */
+/** Календарь дедлайнов — month view со свайпом месяцев. */
 export function DeadlineCalendar({
   tasks,
   onOpen,
   onAddTaskForDay,
+  onAddTask,
   onToggle,
   onDelete,
   onToggleSubtask,
 }) {
   const [viewDate, setViewDate] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState(null);
+  const [slideDir, setSlideDir] = useState(0);
 
-  const focus = useMemo(() => getTodayFocusTask(tasks), [tasks]);
   const monthDays = useMemo(() => getMonthGrid(viewDate), [viewDate]);
   const tasksByDay = useMemo(() => groupTasksByCalendarDay(tasks), [tasks]);
 
   const monthTitle = capitalizeMonth(
     format(viewDate, 'LLLL yyyy', { locale: ru })
   );
+  const monthKey = format(viewDate, 'yyyy-MM');
+
+  const goNextMonth = useCallback(() => {
+    setSlideDir(1);
+    setViewDate((d) => addMonths(d, 1));
+  }, []);
+
+  const goPrevMonth = useCallback(() => {
+    setSlideDir(-1);
+    setViewDate((d) => subMonths(d, 1));
+  }, []);
+
+  const goToday = useCallback(() => {
+    setSlideDir(0);
+    setViewDate(new Date());
+  }, []);
+
+  const swipeHandlers = useSwipe({
+    onSwipeLeft:  goNextMonth,
+    onSwipeRight: goPrevMonth,
+  });
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="w-full flex flex-col flex-1 min-h-0 space-y-4"
+      className="w-full flex flex-col flex-1 min-h-0 space-y-4 calendar-swipe-root"
+      style={{
+        paddingLeft: 'env(safe-area-inset-left, 0px)',
+        paddingRight: 'env(safe-area-inset-right, 0px)',
+      }}
     >
-      <FocusStrip task={focus} onOpen={onOpen} />
+      <TodayTasksSection
+        tasks={tasks}
+        onOpen={onOpen}
+        onToggle={onToggle}
+        onAddTask={onAddTask ?? (() => onAddTaskForDay?.(new Date()))}
+        compact
+      />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1">
-          <NavButton
-            aria-label="Предыдущий месяц"
-            onClick={() => setViewDate((d) => subMonths(d, 1))}
-          >
+          <NavButton aria-label="Предыдущий месяц" onClick={goPrevMonth}>
             <ChevronLeft size={18} />
           </NavButton>
-          <NavButton
-            aria-label="Следующий месяц"
-            onClick={() => setViewDate((d) => addMonths(d, 1))}
-          >
+          <NavButton aria-label="Следующий месяц" onClick={goNextMonth}>
             <ChevronRight size={18} />
           </NavButton>
         </div>
@@ -72,7 +98,7 @@ export function DeadlineCalendar({
 
         <button
           type="button"
-          onClick={() => setViewDate(new Date())}
+          onClick={goToday}
           className="px-3 py-1.5 text-xs font-semibold rounded-xl
             bg-theme-elevated border border-theme text-theme-main
             hover:bg-theme-surface transition-colors cursor-pointer shadow-card"
@@ -81,7 +107,13 @@ export function DeadlineCalendar({
         </button>
       </div>
 
-      <div className="rounded-card border border-theme bg-theme-surface shadow-card overflow-hidden flex flex-col flex-1 min-h-0">
+      <div
+        className="rounded-card border border-theme bg-theme-surface shadow-card
+          overflow-hidden flex flex-col flex-1 min-h-0 touch-pan-y"
+        onTouchStart={swipeHandlers.onTouchStart}
+        onTouchMove={swipeHandlers.onTouchMove}
+        onTouchEnd={swipeHandlers.onTouchEnd}
+      >
         <div className="calendar-month-grid border-b border-theme bg-theme-elevated">
           {WEEKDAYS.map((label) => (
             <div
@@ -93,16 +125,25 @@ export function DeadlineCalendar({
           ))}
         </div>
 
-        <div className="calendar-month-grid calendar-month-body flex-1">
-          {monthDays.map((day) => (
-            <DayCell
-              key={dayKey(day.date)}
-              day={day}
-              tasks={tasksByDay.get(dayKey(day.date)) || []}
-              onOpenDay={setSelectedDay}
-            />
-          ))}
-        </div>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={monthKey}
+            initial={{ opacity: 0, x: slideDir >= 0 ? 48 : -48 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: slideDir >= 0 ? -48 : 48 }}
+            transition={{ duration: 0.28, ease: 'easeInOut' }}
+            className="calendar-month-grid calendar-month-body flex-1 calendar-slide-panel"
+          >
+            {monthDays.map((day) => (
+              <DayCell
+                key={dayKey(day.date)}
+                day={day}
+                tasks={tasksByDay.get(dayKey(day.date)) || []}
+                onOpenDay={setSelectedDay}
+              />
+            ))}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       <AnimatePresence>
@@ -138,48 +179,6 @@ function NavButton({ children, onClick, ...props }) {
   );
 }
 
-function FocusStrip({ task, onOpen }) {
-  if (!task) {
-    return (
-      <div className="flex items-center gap-2 px-3 py-2 rounded-card border border-theme
-        bg-theme-surface text-xs text-theme-muted shadow-card">
-        <Flame size={14} className="text-amber-500 flex-shrink-0" />
-        <span>Фокус дня: нет задач с дедлайном на сегодня</span>
-      </div>
-    );
-  }
-
-  const priority = PRIORITIES[task.priority];
-  const deadline = formatDeadline(task.deadline);
-
-  return (
-    <button
-      type="button"
-      onClick={() => onOpen(task)}
-      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-card
-        border border-amber-300/60 dark:border-amber-700/50
-        bg-gradient-to-r from-amber-50/90 to-theme-surface
-        dark:from-amber-950/30 dark:to-theme-surface
-        hover:shadow-card-hover transition-all cursor-pointer text-left shadow-card"
-    >
-      <Flame size={16} className="text-amber-600 dark:text-amber-400 flex-shrink-0" />
-      <span className="text-xs font-bold text-amber-800 dark:text-amber-200 uppercase tracking-wide flex-shrink-0 hidden sm:inline">
-        Фокус дня
-      </span>
-      <span className={`w-0.5 h-4 rounded-full flex-shrink-0 ${priority?.dot}`} />
-      <span className="flex-1 min-w-0 text-sm font-semibold text-theme-main truncate">
-        {task.title || 'Без названия'}
-      </span>
-      {deadline && (
-        <span className="flex items-center gap-1 text-xs text-theme-muted flex-shrink-0">
-          <Clock size={11} />
-          <span className="hidden sm:inline">{deadline}</span>
-        </span>
-      )}
-    </button>
-  );
-}
-
 function DayCell({ day, tasks: dayTasks, onOpenDay }) {
   const { date, inMonth, isToday: today } = day;
   const extra = Math.max(0, dayTasks.length - MAX_TASKS_DESKTOP);
@@ -198,6 +197,7 @@ function DayCell({ day, tasks: dayTasks, onOpenDay }) {
           handleCellClick();
         }
       }}
+      data-swipe-ignore
       className={`
         calendar-day-cell group relative flex flex-col
         border-r border-b border-theme p-1 sm:p-1.5
@@ -220,7 +220,7 @@ function DayCell({ day, tasks: dayTasks, onOpenDay }) {
         {format(date, 'd')}
       </span>
 
-      <div className="flex flex-wrap gap-0.5 md:hidden min-h-[14px]">
+      <div className="flex flex-wrap gap-0.5 md:hidden min-h-[14px]" data-horizontal-scroll>
         {dayTasks.slice(0, 5).map((task) => (
           <span
             key={task.id}
@@ -241,9 +241,7 @@ function DayCell({ day, tasks: dayTasks, onOpenDay }) {
           <CalendarMiniTask key={task.id} task={task} />
         ))}
         {extra > 0 && (
-          <span
-            className="text-[10px] text-theme-muted px-1 font-medium"
-          >
+          <span className="text-[10px] text-theme-muted px-1 font-medium">
             +{extra} ещё
           </span>
         )}

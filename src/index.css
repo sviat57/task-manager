@@ -319,5 +319,35 @@
   .calendar-month-body .calendar-day-cell:nth-last-child(-n+7) {
     border-bottom: none;
   }
+
+  /* Кнопки задачи: всегда на touch, при hover — только на desktop */
+  @media (hover: hover) and (pointer: fine) {
+    .group .task-item-actions {
+      opacity: 0;
+    }
+    .group:hover .task-item-actions {
+      opacity: 1;
+    }
+  }
+
+  .touch-pan-y {
+    touch-action: pan-y;
+  }
+
+  .calendar-slide-panel {
+    will-change: transform, opacity;
+  }
+
+  .calendar-swipe-root {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
 }
 
