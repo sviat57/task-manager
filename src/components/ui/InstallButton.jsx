@@ -49,100 +49,106 @@ export function InstallButton() {
       {/* ── Модалка с инструкцией для iOS ─────────────────────────────────── */}
       <AnimatePresence>
         {iosModal && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center"
-            style={{
-              padding: 'calc(1rem + env(safe-area-inset-top, 0px)) calc(1rem + env(safe-area-inset-right, 0px)) calc(1rem + env(safe-area-inset-bottom, 0px)) calc(1rem + env(safe-area-inset-left, 0px))',
-            }}
-          >
+          <>
+            {/* Backdrop — полноэкранный, под модалкой */}
             <motion.div
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              className="fixed inset-0 z-[9998] bg-black/40 backdrop-blur-sm"
               onClick={() => setIosModal(false)}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             />
 
-            <motion.div
-              className="relative w-full max-w-sm bg-theme-surface
-                rounded-card shadow-modal border border-theme overflow-hidden"
+            {/* Контейнер модалки — начинается НИЖЕ safe area */}
+            <div
+              className="fixed left-0 right-0 z-[9999] flex items-start justify-center px-4 pt-4 pb-4"
               style={{
-                maxHeight: 'calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 3rem)',
+                top: 'env(safe-area-inset-top, 0px)',
+                bottom: 'env(safe-area-inset-bottom, 0px)',
               }}
-              initial={{ opacity: 0, scale: 0.92, y: 24 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.92, y: 24 }}
-              transition={{ type: 'spring', damping: 24, stiffness: 320 }}
             >
-              {/* Хедер */}
-              <div className="flex items-center justify-between px-5 pt-5 pb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-indigo-600
-                    rounded-xl flex items-center justify-center shadow-card">
-                    <Smartphone size={20} className="text-white" />
+              <motion.div
+                className="relative w-full max-w-sm bg-theme-surface
+                  rounded-card shadow-modal border border-theme
+                  flex flex-col overflow-hidden"
+                style={{
+                  maxHeight: 'calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 2rem)',
+                }}
+                initial={{ opacity: 0, scale: 0.92, y: 24 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.92, y: 24 }}
+                transition={{ type: 'spring', damping: 24, stiffness: 320 }}
+              >
+                {/* Хедер */}
+                <div className="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-indigo-600
+                      rounded-xl flex items-center justify-center shadow-card">
+                      <Smartphone size={20} className="text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-theme-main">
+                        Установить TaskFlow
+                      </h3>
+                      <p className="text-xs text-theme-muted">на iPhone / iPad</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-theme-main">
-                      Установить TaskFlow
-                    </h3>
-                    <p className="text-xs text-theme-muted">на iPhone / iPad</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIosModal(false)}
-                  className="p-1.5 rounded-lg hover:bg-theme-elevated
-                    text-theme-muted cursor-pointer"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              {/* Шаги */}
-              <div className="px-5 pb-5 space-y-4 overflow-y-auto">
-                <p className="text-xs text-theme-muted leading-relaxed">
-                  iOS не поддерживает автоматическую установку.
-                  Выполните 3 шага вручную:
-                </p>
-
-                <div className="space-y-3">
-                  <Step
-                    number={1}
-                    icon={<Share size={14} />}
-                    title="Нажмите «Поделиться»"
-                    desc="Квадрат со стрелкой вверх — внизу Safari"
-                  />
-                  <Step
-                    number={2}
-                    icon={<PlusSquare size={14} />}
-                    title="«На экран Домой»"
-                    desc="Пролистайте список и нажмите эту кнопку"
-                  />
-                  <Step
-                    number={3}
-                    icon={<Download size={14} />}
-                    title="Подтвердите «Добавить»"
-                    desc="TaskFlow появится на рабочем столе как приложение"
-                  />
+                  <button
+                    onClick={() => setIosModal(false)}
+                    className="p-1.5 rounded-lg hover:bg-theme-elevated
+                      text-theme-muted cursor-pointer"
+                  >
+                    <X size={16} />
+                  </button>
                 </div>
 
-                <div className="pt-2 border-t border-theme">
-                  <p className="text-[11px] text-theme-muted leading-relaxed">
-                    💡 После установки включите уведомления в
-                    <span className="font-semibold"> Настройки → TaskFlow → Уведомления</span>
+                {/* Шаги — скроллируемая область */}
+                <div className="px-5 pb-5 space-y-4 overflow-y-auto flex-1 min-h-0">
+                  <p className="text-xs text-theme-muted leading-relaxed">
+                    iOS не поддерживает автоматическую установку.
+                    Выполните 3 шага вручную:
                   </p>
-                </div>
 
-                <button
-                  onClick={() => setIosModal(false)}
-                  className="w-full py-2.5 rounded-xl text-sm font-semibold
-                    bg-primary hover:bg-primary-hover text-primary-fg
-                    cursor-pointer shadow-card transition-colors"
-                >
-                  Понятно
-                </button>
-              </div>
-            </motion.div>
-          </div>
+                  <div className="space-y-3">
+                    <Step
+                      number={1}
+                      icon={<Share size={14} />}
+                      title="Нажмите «Поделиться»"
+                      desc="Квадрат со стрелкой вверх — внизу Safari"
+                    />
+                    <Step
+                      number={2}
+                      icon={<PlusSquare size={14} />}
+                      title="«На экран Домой»"
+                      desc="Пролистайте список и нажмите эту кнопку"
+                    />
+                    <Step
+                      number={3}
+                      icon={<Download size={14} />}
+                      title="Подтвердите «Добавить»"
+                      desc="TaskFlow появится на рабочем столе как приложение"
+                    />
+                  </div>
+
+                  <div className="pt-2 border-t border-theme">
+                    <p className="text-[11px] text-theme-muted leading-relaxed">
+                      💡 После установки включите уведомления в
+                      <span className="font-semibold"> Настройки → TaskFlow → Уведомления</span>
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => setIosModal(false)}
+                    className="w-full py-2.5 rounded-xl text-sm font-semibold
+                      bg-primary hover:bg-primary-hover text-primary-fg
+                      cursor-pointer shadow-card transition-colors"
+                  >
+                    Понятно
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          </>
         )}
       </AnimatePresence>
     </>
