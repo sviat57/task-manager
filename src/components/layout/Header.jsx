@@ -16,7 +16,7 @@ export function Header({ view }) {
       key={view}
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mb-6"
+      className="mb-4 sm:mb-6"
     >
       <h1 className="text-2xl font-bold text-theme-main">{title}</h1>
       <p className="text-sm text-theme-muted mt-0.5">{sub}</p>

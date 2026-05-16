@@ -116,7 +116,7 @@ export default function App() {
 
   // ── Основной интерфейс ────────────────────────────────────────────────────
   return (
-    <div className="h-full bg-theme-base transition-colors duration-300 flex flex-col overflow-clip safe-top">
+    <div className="h-full bg-theme-base transition-colors duration-300 flex flex-col overflow-clip">
 
       {/* Баннер гостевого режима */}
       <AnimatePresence>
@@ -173,10 +173,13 @@ export default function App() {
         </div>
 
         {/* Контент */}
-        <main className="flex-1 px-4 lg:px-8 py-6 min-w-0 flex flex-col overflow-y-auto">
+        <main
+          className="flex-1 px-4 lg:px-8 pb-6 min-w-0 flex flex-col overflow-y-auto"
+          style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 0.75rem)' }}
+        >
 
           {/* Мобильная шапка */}
-          <div className="flex items-center justify-between mb-4 lg:hidden">
+          <div className="flex items-center justify-between mb-3 lg:hidden">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setSidebarOpen(true)}

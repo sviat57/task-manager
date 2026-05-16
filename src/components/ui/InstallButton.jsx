@@ -66,6 +66,9 @@ export function InstallButton() {
             <motion.div
               className="relative w-full max-w-sm bg-theme-surface
                 rounded-card shadow-modal border border-theme overflow-hidden"
+              style={{
+                maxHeight: 'calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 3rem)',
+              }}
               initial={{ opacity: 0, scale: 0.92, y: 24 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.92, y: 24 }}
@@ -95,7 +98,7 @@ export function InstallButton() {
               </div>
 
               {/* Шаги */}
-              <div className="px-5 pb-5 space-y-4">
+              <div className="px-5 pb-5 space-y-4 overflow-y-auto">
                 <p className="text-xs text-theme-muted leading-relaxed">
                   iOS не поддерживает автоматическую установку.
                   Выполните 3 шага вручную:
