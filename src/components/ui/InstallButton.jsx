@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, X, Share, PlusSquare, Smartphone } from 'lucide-react';
 import { useInstallPrompt } from '../../hooks/useInstallPrompt';
-
+import { createPortal } from 'react-dom';
 /**
  * InstallButton — кнопка «Установить приложение» для сайдбара.
  *
